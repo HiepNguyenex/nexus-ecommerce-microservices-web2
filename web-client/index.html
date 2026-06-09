@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang Chủ - Rainbow Forest Shop</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="bg-glow glow-1"></div>
+    <div class="bg-glow glow-2"></div>
+
+    <nav>
+        <div class="logo" onclick="window.location.reload()">🌈 Rainbow Forest</div>
+        <div id="user-menu" class="nav-buttons">
+            <button onclick="window.location.href='login.html'" class="btn-primary">Đăng Nhập</button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header style="padding: 5rem 5% 3rem 5%; text-align: center; max-width: 800px; margin: 0 auto;">
+        <h1 style="font-size: 3.5rem; font-weight: 800; margin-bottom: 1rem; line-height: 1.2;">Chào mừng đến với <span style="background: var(--primary-grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Rainbow Forest</span></h1>
+        <p style="color: var(--text-secondary); font-size: 1.2rem; margin-bottom: 2rem;">Khám phá các sản phẩm công nghệ, thời trang và sách với chất lượng hàng đầu và dịch vụ thanh toán nhanh chóng.</p>
+        <div class="form-group" style="max-width: 500px; margin: 0 auto;">
+            <input type="text" id="search-input" class="form-control" placeholder="Tìm kiếm sản phẩm nhanh..." onkeyup="filterProducts()">
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Categories Filter -->
+        <div class="filter-bar" id="category-filters">
+            <button class="filter-btn active" onclick="selectCategory('All')">Tất Cả</button>
+            <button class="filter-btn" onclick="selectCategory('Electronics')">Công Nghệ</button>
+            <button class="filter-btn" onclick="selectCategory('Clothing')">Thời Trang</button>
+            <button class="filter-btn" onclick="selectCategory('Books')">Sách</button>
+        </div>
+
+        <!-- Products Grid -->
+        <div class="product-grid" id="products-list">
+            <!-- Products will be loaded dynamically here -->
+            <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-secondary)">
+                🔄 Đang tải sản phẩm từ hệ thống microservices...
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        let allProducts = [];
+        let selectedCategory = 'All';
+
+        // Unsplash Backup Images for seed.sql products
+        const backupImages = {
+            1: "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=500&auto=format&fit=crop&q=60",
+            2: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&auto=format&fit=crop&q=60",
+            3: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&auto=format&fit=crop&q=60",
+            4: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60",
+            5: "https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=500&auto=format&fit=crop&q=60"
+        };
+
+        const defaultImage = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60";
+
+        async function loadProducts() {
+            try {
+                // Call product-catalog-service via gateway
+                const products = await apiRequest('/catalog/products');
+                allProducts = products || [];
+                renderProducts();
+            } catch (err) {
+                showToast('Không thể kết nối đến máy chủ API Catalog.', 'error');
+                document.getElementById('products-list').innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--danger)">
+                        ❌ Không thể tải sản phẩm. Lỗi kết nối API Gateway.
+                    </div>
+                `;
+            }
+        }
+
+        function renderProducts() {
+            const grid = document.getElementById('products-list');
+            grid.innerHTML = '';
+
+            let filtered = allProducts;
+            if (selectedCategory !== 'All') {
+                filtered = allProducts.filter(p => p.category && p.category.toLowerCase() === selectedCategory.toLowerCase());
+            }
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-secondary)">
+                        📭 Không tìm thấy sản phẩm nào trong danh mục này.
+                    </div>
+                `;
+                return;
+            }
+
+            filtered.forEach(product => {
+                const imgUrl = backupImages[product.id] || defaultImage;
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.onclick = (e) => {
+                    // Prevent click trigger when clicking the add to cart button
+                    if (e.target.closest('.add-cart-btn')) return;
+                    window.location.href = `product.html?id=${product.id}`;
+                };
+                
+                card.innerHTML = `
+                    <img src="${imgUrl}" alt="${product.productName}" class="product-image">
+                    <div class="product-info">
+                        <div class="product-category">${product.category || 'General'}</div>
+                        <div class="product-title">${product.productName}</div>
+                        <div class="product-bottom">
+                            <div class="product-price">$${product.price.toFixed(2)}</div>
+                            <button class="add-cart-btn" onclick="addToCart(${product.id}, '${product.productName.replace(/'/g, "\\'")}', ${product.price})">
+                                ＋
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function selectCategory(category) {
+            selectedCategory = category;
+            
+            // Toggle active class on buttons
+            const buttons = document.querySelectorAll('#category-filters .filter-btn');
+            buttons.forEach(btn => {
+                if (btn.innerText.includes(category === 'All' ? 'Tất Cả' : category === 'Electronics' ? 'Công Nghệ' : category === 'Clothing' ? 'Thời Trang' : 'Sách')) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            renderProducts();
+        }
+
+        function filterProducts() {
+            const query = document.getElementById('search-input').value.toLowerCase();
+            const grid = document.getElementById('products-list');
+            
+            const filtered = allProducts.filter(p => 
+                p.productName.toLowerCase().includes(query) || 
+                (p.category && p.category.toLowerCase().includes(query))
+            );
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-secondary)">
+                        🔍 Không tìm thấy sản phẩm khớp với từ khóa tìm kiếm.
+                    </div>
+                `;
+                return;
+            }
+
+            // Temporarily replace rendered items based on search
+            const oldCategory = selectedCategory;
+            selectedCategory = 'All'; // Reset category active classes temporarily
+            renderProductsFiltered(filtered);
+            selectedCategory = oldCategory;
+        }
+
+        function renderProductsFiltered(filteredList) {
+            const grid = document.getElementById('products-list');
+            grid.innerHTML = '';
+            filteredList.forEach(product => {
+                const imgUrl = backupImages[product.id] || defaultImage;
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                card.onclick = (e) => {
+                    if (e.target.closest('.add-cart-btn')) return;
+                    window.location.href = `product.html?id=${product.id}`;
+                };
+                card.innerHTML = `
+                    <img src="${imgUrl}" alt="${product.productName}" class="product-image">
+                    <div class="product-info">
+                        <div class="product-category">${product.category || 'General'}</div>
+                        <div class="product-title">${product.productName}</div>
+                        <div class="product-bottom">
+                            <div class="product-price">$${product.price.toFixed(2)}</div>
+                            <button class="add-cart-btn" onclick="addToCart(${product.id}, '${product.productName.replace(/'/g, "\\'")}', ${product.price})">
+                                ＋
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function addToCart(productId, productName, price) {
+            const token = localStorage.getItem('jwtToken');
+            if (!token) {
+                showToast('Vui lòng đăng nhập trước khi mua hàng!', 'warning');
+                setTimeout(() => window.location.href = 'login.html', 1500);
+                return;
+            }
+
+            try {
+                // Call order-service cart controller via Gateway
+                // Post mapping: /cart?productId=X&quantity=Y
+                await apiRequest(`/shop/cart?productId=${productId}&quantity=1`, {
+                    method: 'POST'
+                });
+                showToast(`Đã thêm '${productName}' vào giỏ hàng thành công!`);
+            } catch (err) {
+                showToast('Không thể thêm sản phẩm vào giỏ hàng.', 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProducts();
+        });
+    </script>
+</body>
+</html>

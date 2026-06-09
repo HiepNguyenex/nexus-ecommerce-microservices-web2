@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng Nhập / Đăng Ký - Rainbow Forest</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="bg-glow glow-1"></div>
+    <div class="bg-glow glow-2"></div>
+
+    <nav>
+        <div class="logo" onclick="window.location.href='index.html'">🌈 Rainbow Forest</div>
+        <div class="nav-buttons">
+            <button id="theme-toggle" class="theme-toggle-btn" onclick="toggleTheme()">☀️</button>
+            <button onclick="window.location.href='index.html'" class="btn-secondary">Về Cửa Hàng</button>
+        </div>
+    </nav>
+
+    <div class="container auth-wrapper">
+        <div class="glass-card">
+            <div class="auth-tabs">
+                <div id="tab-login" class="auth-tab active" onclick="switchTab('login')">Đăng Nhập</div>
+                <div id="tab-register" class="auth-tab" onclick="switchTab('register')">Đăng Ký</div>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="login-username">Tên đăng nhập</label>
+                    <input type="text" id="login-username" class="form-control" placeholder="Nhập tên đăng nhập (ví dụ: johndoe)" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Mật khẩu</label>
+                    <input type="password" id="login-password" class="form-control" placeholder="Nhập mật khẩu (ví dụ: password123)" required>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem; padding: 0.8rem;">Đăng Nhập</button>
+            </form>
+
+            <!-- Register Form (hidden by default) -->
+            <form id="register-form" onsubmit="handleRegister(event)" style="display: none;">
+                <div class="form-group">
+                    <label for="reg-username">Tên đăng nhập</label>
+                    <input type="text" id="reg-username" class="form-control" placeholder="Chọn tên đăng nhập" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">Mật khẩu</label>
+                    <input type="password" id="reg-password" class="form-control" placeholder="Chọn mật khẩu" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-firstname">Tên</label>
+                    <input type="text" id="reg-firstname" class="form-control" placeholder="Nhập tên của bạn" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-lastname">Họ</label>
+                    <input type="text" id="reg-lastname" class="form-control" placeholder="Nhập họ của bạn" required>
+                </div>
+                <div class="form-group">
+                    <label for="reg-email">Email</label>
+                    <input type="email" id="reg-email" class="form-control" placeholder="example@email.com" required>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem; padding: 0.8rem;">Đăng Ký Tài Khoản</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        function switchTab(tab) {
+            const loginForm = document.getElementById('login-form');
+            const registerForm = document.getElementById('register-form');
+            const tabLogin = document.getElementById('tab-login');
+            const tabRegister = document.getElementById('tab-register');
+
+            if (tab === 'login') {
+                loginForm.style.display = 'block';
+                registerForm.style.display = 'none';
+                tabLogin.classList.add('active');
+                tabRegister.classList.remove('active');
+            } else {
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'block';
+                tabLogin.classList.remove('active');
+                tabRegister.classList.add('active');
+            }
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            try {
+                const data = await apiRequest('/accounts/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ username, password })
+                });
+
+                localStorage.setItem('jwtToken', data.token);
+                localStorage.setItem('username', data.username);
+                localStorage.setItem('userRole', data.role);
+
+                showToast('Đăng nhập thành công! Đang chuyển hướng...');
+                setTimeout(() => {
+                    // Check if role is admin, redirect to admin page, else to index
+                    if (data.role === 'ROLE_ADMIN') {
+                        window.location.href = 'admin.html';
+                    } else {
+                        window.location.href = 'index.html';
+                    }
+                }, 1500);
+            } catch (err) {
+                showToast(err.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại!', 'error');
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const userName = document.getElementById('reg-username').value;
+            const userPassword = document.getElementById('reg-password').value;
+            const firstName = document.getElementById('reg-firstname').value;
+            const lastName = document.getElementById('reg-lastname').value;
+            const email = document.getElementById('reg-email').value;
+
+            // default fields for user_details
+            const userDetails = {
+                firstName,
+                lastName,
+                email,
+                country: 'Vietnam',
+                locality: 'Hanoi',
+                street: 'Main Street',
+                streetNumber: '1',
+                zipCode: '10000',
+                phoneNumber: '0987654321'
+            };
+
+            try {
+                // Call register api: user-service register controller
+                await apiRequest('/accounts/register', {
+                    method: 'POST',
+                    body: JSON.stringify({ userName, userPassword, userDetails })
+                });
+
+                showToast('Đăng ký thành công! Hãy đăng nhập.');
+                switchTab('login');
+            } catch (err) {
+                showToast(err.message || 'Đăng ký thất bại.', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Rainbow Forest</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Modern Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.show {
+            display: flex;
+        }
+        .modal-content {
+            width: 90%;
+            max-width: 550px;
+            animation: modalFadeIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        @keyframes modalFadeIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.8rem;
+        }
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .close-btn:hover {
+            color: var(--text-primary);
+        }
+        .admin-tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+        .admin-tab {
+            padding: 0.8rem 1.5rem;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+        .admin-tab.active {
+            color: var(--text-primary);
+            border-bottom-color: #6366f1;
+        }
+        .status-actions-btn {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .status-actions-btn:hover {
+            border-color: #6366f1;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-glow glow-1"></div>
+    <div class="bg-glow glow-2"></div>
+
+    <nav>
+        <div class="logo" onclick="window.location.href='index.html'">🌈 Rainbow Forest <span style="font-size: 0.9rem; font-weight: 500; background: var(--accent-grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-left: 0.5rem; padding: 0.2rem 0.6rem; border: 1px solid rgba(244, 63, 94, 0.2); border-radius: 999px;">Admin</span></div>
+        <div id="user-menu" class="nav-buttons">
+            <!-- Auth UI will load here -->
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Stats Row -->
+        <div class="dashboard-stats" id="stats-container">
+            <div class="stat-card">
+                <div class="stat-title">Doanh Thu</div>
+                <div class="stat-value" id="stat-revenue">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Đơn Đặt Hàng</div>
+                <div class="stat-value" id="stat-orders">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Khách Hàng</div>
+                <div class="stat-value" id="stat-users">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Sản Phẩm</div>
+                <div class="stat-value" id="stat-products">0</div>
+            </div>
+        </div>
+
+        <!-- Section Navigation Tabs -->
+        <div class="admin-tabs">
+            <div class="admin-tab active" onclick="switchSection('products')">📦 Quản Lý Sản Phẩm</div>
+            <div class="admin-tab" onclick="switchSection('orders')">📋 Quản Lý Đơn Hàng</div>
+            <div class="admin-tab" onclick="switchSection('users')">👥 Quản Lý Người Dùng</div>
+            <div class="admin-tab" onclick="switchSection('recommendations')">⭐ Quản Lý Đề Xuất</div>
+        </div>
+
+        <!-- Products Section -->
+        <div id="section-products" class="glass-card" style="margin-top: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h2>Danh sách sản phẩm</h2>
+                <button class="btn-primary" onclick="openAddProductModal()">＋ Thêm Sản Phẩm Mới</button>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Mã SP</th>
+                            <th>Tên Sản Phẩm</th>
+                            <th>Danh Mục</th>
+                            <th>Giá</th>
+                            <th>Kho Hàng</th>
+                            <th>Mô Tả</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="products-table-body">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--text-secondary);">🔄 Đang tải sản phẩm...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Orders Section (Hidden by default) -->
+        <div id="section-orders" class="glass-card" style="margin-top: 1rem; display: none;">
+            <div style="margin-bottom: 2rem;">
+                <h2>Danh sách đơn đặt hàng</h2>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Mã ĐH</th>
+                            <th>Khách Hàng</th>
+                            <th>Ngày Đặt</th>
+                            <th>Sản Phẩm</th>
+                            <th>Tổng Tiền</th>
+                            <th>Trạng Thái</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-table-body">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--text-secondary);">🔄 Đang tải đơn hàng...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Users Section (Hidden by default) -->
+        <div id="section-users" class="glass-card" style="margin-top: 1rem; display: none;">
+            <div style="margin-bottom: 2rem;">
+                <h2>Danh sách người dùng</h2>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Mã KH</th>
+                            <th>Tên Đăng Nhập</th>
+                            <th>Thông Tin Chi Tiết</th>
+                            <th>Vai Trò</th>
+                            <th>Trạng Thái</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: var(--text-secondary);">🔄 Đang tải người dùng...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Recommendations Section (Hidden by default) -->
+        <div id="section-recommendations" class="glass-card" style="margin-top: 1rem; display: none;">
+            <div style="margin-bottom: 2rem;">
+                <h2>Danh sách đánh giá & đề xuất</h2>
+            </div>
+            
+            <div style="overflow-x: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Mã ĐG</th>
+                            <th>Khách Hàng</th>
+                            <th>Sản Phẩm</th>
+                            <th>Đánh Giá</th>
+                            <th>Hành Động</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recommendations-table-body">
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-secondary);">🔄 Đang tải đánh giá...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Form Modal -->
+    <div class="modal" id="product-modal">
+        <div class="glass-card modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Thêm sản phẩm mới</h3>
+                <button class="close-btn" onclick="closeProductModal()">×</button>
+            </div>
+            <form id="product-form" onsubmit="handleProductSubmit(event)">
+                <input type="hidden" id="prod-id">
+                
+                <div class="form-group">
+                    <label for="prod-name">Tên sản phẩm</label>
+                    <input type="text" id="prod-name" class="form-control" placeholder="Nhập tên sản phẩm" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="prod-category">Danh mục</label>
+                    <select id="prod-category" class="form-control" required>
+                        <option value="Electronics">Công Nghệ (Electronics)</option>
+                        <option value="Clothing">Thời Trang (Clothing)</option>
+                        <option value="Books">Sách (Books)</option>
+                    </select>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="prod-price">Giá ($)</label>
+                        <input type="number" id="prod-price" class="form-control" step="0.01" placeholder="99.99" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="prod-qty">Số lượng trong kho</label>
+                        <input type="number" id="prod-qty" class="form-control" placeholder="10" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="prod-desc">Mô tả sản phẩm</label>
+                    <textarea id="prod-desc" class="form-control" style="min-height: 100px; resize: vertical;" placeholder="Mô tả sản phẩm chi tiết..."></textarea>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                    <button type="button" class="btn-secondary" onclick="closeProductModal()">Huỷ</button>
+                    <button type="submit" class="btn-primary">Lưu Sản Phẩm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Check Admin Role
+        const role = localStorage.getItem('userRole');
+        if (role !== 'ROLE_ADMIN') {
+            alert('Bạn không có quyền truy cập trang quản trị này!');
+            window.location.href = 'index.html';
+        }
+
+        let allProducts = [];
+        let allOrders = [];
+        let allUsers = [];
+
+        async function initDashboard() {
+            try {
+                // Parallel load dashboard data
+                await Promise.all([
+                    loadProducts(),
+                    loadOrders(),
+                    loadUsers()
+                ]);
+                calculateStats();
+            } catch (err) {
+                console.error("Dashboard Init Error: ", err);
+            }
+        }
+
+        async function loadProducts() {
+            try {
+                const products = await apiRequest('/catalog/products');
+                allProducts = products || [];
+                renderProducts();
+            } catch (err) {
+                showToast('Không thể tải danh sách sản phẩm.', 'error');
+            }
+        }
+
+        async function loadOrders() {
+            try {
+                const orders = await apiRequest('/shop/orders');
+                allOrders = orders || [];
+                renderOrders();
+            } catch (err) {
+                // If no orders exist yet or connection fails
+                allOrders = [];
+                renderOrders();
+            }
+        }
+
+        async function loadUsers() {
+            try {
+                const users = await apiRequest('/accounts/users');
+                allUsers = users || [];
+            } catch (err) {
+                allUsers = [];
+            }
+        }
+
+        function calculateStats() {
+            document.getElementById('stat-products').innerText = allProducts.length;
+            document.getElementById('stat-users').innerText = allUsers.length;
+            document.getElementById('stat-orders').innerText = allOrders.length;
+
+            let totalRevenue = 0;
+            allOrders.forEach(o => {
+                if (o.status !== 'CANCELLED') {
+                    totalRevenue += o.total || 0;
+                }
+            });
+            document.getElementById('stat-revenue').innerText = `$${totalRevenue.toFixed(2)}`;
+        }
+
+        function switchSection(section) {
+            const tabs = document.querySelectorAll('.admin-tab');
+            const secProducts = document.getElementById('section-products');
+            const secOrders = document.getElementById('section-orders');
+            const secUsers = document.getElementById('section-users');
+            const secRecommendations = document.getElementById('section-recommendations');
+
+            const tabMap = {
+                'products': 'Sản Phẩm',
+                'orders': 'Đơn Hàng',
+                'users': 'Người Dùng',
+                'recommendations': 'Đề Xuất'
+            };
+
+            tabs.forEach(tab => {
+                if (tab.innerText.includes(tabMap[section])) {
+                    tab.classList.add('active');
+                } else {
+                    tab.classList.remove('active');
+                }
+            });
+
+            secProducts.style.display = section === 'products' ? 'block' : 'none';
+            secOrders.style.display = section === 'orders' ? 'block' : 'none';
+            secUsers.style.display = section === 'users' ? 'block' : 'none';
+            secRecommendations.style.display = section === 'recommendations' ? 'block' : 'none';
+
+            if (section === 'products') {
+                loadProducts();
+            } else if (section === 'orders') {
+                loadOrders();
+            } else if (section === 'users') {
+                loadUsers().then(() => renderUsers());
+            } else if (section === 'recommendations') {
+                loadRecommendations();
+            }
+        }
+
+        // Render Products
+        function renderProducts() {
+            const tbody = document.getElementById('products-table-body');
+            if (allProducts.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary);">📭 Không có sản phẩm nào.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            allProducts.forEach(prod => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>#${prod.id}</strong></td>
+                    <td><strong style="color: var(--text-primary);">${prod.productName}</strong></td>
+                    <td><span class="badge" style="background: rgba(99, 102, 241, 0.1); color: #818cf8;">${prod.category}</span></td>
+                    <td><strong style="color: var(--success);">$${prod.price.toFixed(2)}</strong></td>
+                    <td>${prod.availability}</td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary);">${prod.discription || 'N/A'}</td>
+                    <td>
+                        <button class="status-actions-btn" onclick="openEditProductModal(${JSON.stringify(prod).replace(/"/g, '&quot;')})">✏️ Sửa</button>
+                        <button class="status-actions-btn" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.2);" onclick="deleteProduct(${prod.id})">🗑️ Xoá</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Render Orders
+        function renderOrders() {
+            const tbody = document.getElementById('orders-table-body');
+            if (allOrders.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary);">📭 Chưa có đơn đặt hàng nào.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            allOrders.forEach(order => {
+                let badgeClass = 'badge-warning';
+                if (order.status === 'PAID' || order.status === 'DELIVERED') badgeClass = 'badge-success';
+                if (order.status === 'CANCELLED') badgeClass = 'badge-danger';
+
+                const orderDate = order.orderedDate ? `${order.orderedDate[2]}/${order.orderedDate[1]}/${order.orderedDate[0]}` : 'N/A';
+                
+                // Display item list summary
+                const itemSummary = order.items.map(item => `${item.product.productName} (x${item.quantity})`).join(', ');
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>#${order.id}</strong></td>
+                    <td>👤 ${order.user ? order.user.userName : 'Ẩn danh'}</td>
+                    <td>📅 ${orderDate}</td>
+                    <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary);" title="${itemSummary}">${itemSummary}</td>
+                    <td><strong style="color: var(--success);">$${order.total.toFixed(2)}</strong></td>
+                    <td><span class="badge ${badgeClass}">${order.status}</span></td>
+                    <td>
+                        <select class="status-actions-btn" onchange="updateOrderStatus(${order.id}, this.value)">
+                            <option value="">Thay đổi...</option>
+                            <option value="PAYMENT_EXPECTED" ${order.status === 'PAYMENT_EXPECTED' ? 'disabled' : ''}>Chờ thanh toán</option>
+                            <option value="PAID" ${order.status === 'PAID' ? 'disabled' : ''}>Đã thanh toán (PAID)</option>
+                            <option value="SHIPPED" ${order.status === 'SHIPPED' ? 'disabled' : ''}>Đang giao hàng</option>
+                            <option value="DELIVERED" ${order.status === 'DELIVERED' ? 'disabled' : ''}>Hoàn thành</option>
+                            <option value="CANCELLED" ${order.status === 'CANCELLED' ? 'disabled' : ''}>Huỷ đơn</option>
+                        </select>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Modal Management
+        function openAddProductModal() {
+            document.getElementById('modal-title').innerText = 'Thêm sản phẩm mới';
+            document.getElementById('prod-id').value = '';
+            document.getElementById('product-form').reset();
+            document.getElementById('product-modal').classList.add('show');
+        }
+
+        function openEditProductModal(prod) {
+            document.getElementById('modal-title').innerText = `Chỉnh sửa sản phẩm #${prod.id}`;
+            document.getElementById('prod-id').value = prod.id;
+            document.getElementById('prod-name').value = prod.productName;
+            document.getElementById('prod-category').value = prod.category;
+            document.getElementById('prod-price').value = prod.price;
+            document.getElementById('prod-qty').value = prod.availability;
+            document.getElementById('prod-desc').value = prod.discription || '';
+            document.getElementById('product-modal').classList.add('show');
+        }
+
+        function closeProductModal() {
+            document.getElementById('product-modal').classList.remove('show');
+        }
+
+        async function handleProductSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById('prod-id').value;
+            const productName = document.getElementById('prod-name').value;
+            const category = document.getElementById('prod-category').value;
+            const price = parseFloat(document.getElementById('prod-price').value);
+            const availability = parseInt(document.getElementById('prod-qty').value);
+            const discription = document.getElementById('prod-desc').value;
+
+            const productData = {
+                productName,
+                category,
+                price,
+                availability,
+                discription
+            };
+
+            if (id) {
+                productData.id = parseInt(id);
+            }
+
+            try {
+                // POST /api/catalog/admin/products
+                await apiRequest('/catalog/admin/products', {
+                    method: 'POST',
+                    body: JSON.stringify(productData)
+                });
+
+                showToast(id ? 'Đã cập nhật sản phẩm thành công!' : 'Đã thêm sản phẩm mới thành công!');
+                closeProductModal();
+                loadProducts().then(() => calculateStats());
+            } catch (err) {
+                showToast('Không thể lưu sản phẩm. Vui lòng kiểm tra lại!', 'error');
+            }
+        }
+
+        async function deleteProduct(id) {
+            if (!confirm(`Bạn có chắc chắn muốn xoá sản phẩm #${id}?`)) return;
+            try {
+                // DELETE /api/catalog/admin/products/{id}
+                await apiRequest(`/catalog/admin/products/${id}`, {
+                    method: 'DELETE'
+                });
+                showToast('Đã xoá sản phẩm thành công!');
+                loadProducts().then(() => calculateStats());
+            } catch (err) {
+                showToast('Không thể xoá sản phẩm.', 'error');
+            }
+        }
+
+        async function updateOrderStatus(orderId, newStatus) {
+            if (!newStatus) return;
+            try {
+                // PUT /api/shop/orders/{id}/status?status=STATUS
+                await apiRequest(`/shop/orders/${orderId}/status?status=${newStatus}`, {
+                    method: 'PUT'
+                });
+                showToast(`Đã chuyển trạng thái đơn hàng #${orderId} sang ${newStatus}!`);
+                loadOrders().then(() => calculateStats());
+            } catch (err) {
+                showToast('Không thể cập nhật trạng thái đơn hàng.', 'error');
+            }
+        }
+
+        async function loadRecommendations() {
+            try {
+                const recs = await apiRequest('/review/recommendations');
+                renderRecommendations(recs || []);
+            } catch (err) {
+                renderRecommendations([]);
+            }
+        }
+
+        function renderRecommendations(recs) {
+            const tbody = document.getElementById('recommendations-table-body');
+            if (!recs || recs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-secondary);">📭 Chưa có đánh giá nào.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            recs.forEach(rec => {
+                const ratingStars = '⭐'.repeat(rec.rating) + '☆'.repeat(5 - rec.rating);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>#${rec.id}</strong></td>
+                    <td>👤 ${rec.user ? rec.user.userName : 'N/A'}</td>
+                    <td>🛍️ ${rec.product ? rec.product.productName : 'N/A'}</td>
+                    <td style="color: var(--warning);">${ratingStars} (${rec.rating}/5)</td>
+                    <td>
+                        <button class="status-actions-btn" style="color: var(--danger); border-color: rgba(239, 68, 68, 0.2);" onclick="deleteRecommendation(${rec.id})">🗑️ Xoá</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function deleteRecommendation(id) {
+            if (!confirm(`Bạn có chắc chắn muốn xoá đề xuất #${id}?`)) return;
+            try {
+                await apiRequest(`/review/recommendations/${id}`, {
+                    method: 'DELETE'
+                });
+                showToast('Đã xoá đề xuất thành công!');
+                loadRecommendations();
+            } catch (err) {
+                showToast('Không thể xoá đề xuất.', 'error');
+            }
+        }
+
+        function renderUsers() {
+            const tbody = document.getElementById('users-table-body');
+            if (allUsers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-secondary);">📭 Không có người dùng nào.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            allUsers.forEach(user => {
+                const details = user.userDetails 
+                    ? `📝 ${user.userDetails.firstName} ${user.userDetails.lastName}<br>📞 ${user.userDetails.phoneNumber || 'N/A'}<br>🏠 ${user.userDetails.street || 'N/A'}`
+                    : 'Chưa cập nhật';
+                
+                const statusBadge = user.active === 1 
+                    ? '<span class="badge badge-success">Đang hoạt động</span>' 
+                    : '<span class="badge badge-danger">Đã khóa</span>';
+                
+                const statusActionText = user.active === 1 ? '🔒 Khóa' : '🔓 Mở khóa';
+                const statusActionColor = user.active === 1 ? 'var(--danger)' : 'var(--success)';
+                const statusActionBorder = user.active === 1 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(34, 197, 94, 0.2)';
+                const nextActiveValue = user.active === 1 ? 0 : 1;
+
+                // Admin cannot lock themselves
+                const isSelf = user.userName === localStorage.getItem('username');
+                const actionButton = isSelf 
+                    ? `<span style="font-size: 0.8rem; color: var(--text-secondary);">Tài khoản của bạn</span>`
+                    : `<button class="status-actions-btn" style="color: ${statusActionColor}; border-color: ${statusActionBorder};" onclick="toggleUserStatus(${user.id}, ${nextActiveValue})">${statusActionText}</button>`;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>#${user.id}</strong></td>
+                    <td><strong style="color: var(--text-primary);">${user.userName}</strong></td>
+                    <td style="font-size: 0.85rem; line-height: 1.4; color: var(--text-secondary);">${details}</td>
+                    <td><span class="badge" style="background: rgba(99, 102, 241, 0.1); color: #818cf8;">${user.role ? user.role.roleName : 'ROLE_USER'}</span></td>
+                    <td>${statusBadge}</td>
+                    <td>${actionButton}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        async function toggleUserStatus(userId, nextActive) {
+            const actionText = nextActive === 0 ? 'khóa' : 'mở khóa';
+            if (!confirm(`Bạn có chắc chắn muốn ${actionText} tài khoản này?`)) return;
+            try {
+                await apiRequest(`/accounts/users/${userId}/status?active=${nextActive}`, {
+                    method: 'PUT'
+                });
+                showToast(`Đã ${actionText} tài khoản thành công!`);
+                loadUsers().then(() => {
+                    renderUsers();
+                    calculateStats();
+                });
+            } catch (err) {
+                showToast(`Không thể ${actionText} tài khoản.`, 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initDashboard();
+        });
+    </script>
+</body>
+</html>

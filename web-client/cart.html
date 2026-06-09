@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giỏ Hàng - Rainbow Forest</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="bg-glow glow-1"></div>
+    <div class="bg-glow glow-2"></div>
+
+    <nav>
+        <div class="logo" onclick="window.location.href='index.html'">🌈 Rainbow Forest</div>
+        <div id="user-menu" class="nav-buttons">
+            <button onclick="window.location.href='login.html'" class="btn-primary">Đăng Nhập</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Back Button -->
+        <button onclick="window.location.href='index.html'" class="btn-secondary" style="margin-bottom: 2rem; padding: 0.5rem 1.2rem;">
+            ← Tiếp Tục Mua Sắm
+        </button>
+
+        <h1 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 2rem; background: var(--primary-grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: inline-block;">
+            🛒 Giỏ Hàng Của Bạn
+        </h1>
+
+        <div class="cart-layout" id="cart-container">
+            <!-- Left: Cart Items -->
+            <div class="cart-items" id="cart-items-list">
+                <div class="glass-card" style="text-align: center; padding: 3rem; color: var(--text-secondary)">
+                    🔄 Đang tải giỏ hàng...
+                </div>
+            </div>
+
+            <!-- Right: Summary Card -->
+            <div class="glass-card" style="height: fit-content; padding: 2rem;">
+                <h3 style="margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem;">Tóm tắt đơn hàng</h3>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                    <span style="color: var(--text-secondary);">Tạm tính:</span>
+                    <strong id="cart-subtotal">$0.00</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+                    <span style="color: var(--text-secondary);">Phí vận chuyển:</span>
+                    <strong style="color: var(--success);">Miễn phí</strong>
+                </div>
+                <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 2rem; font-size: 1.2rem;">
+                    <span>Tổng cộng:</span>
+                    <strong style="background: var(--primary-grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" id="cart-total">$0.00</strong>
+                </div>
+
+                <button class="btn-primary" style="width: 100%; padding: 0.8rem; font-size: 1.1rem;" onclick="checkout()">
+                    🚀 Tiến Hành Đặt Hàng
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        let cartItems = [];
+        const backupImages = {
+            1: "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=500&auto=format&fit=crop&q=60",
+            2: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&auto=format&fit=crop&q=60",
+            3: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&auto=format&fit=crop&q=60",
+            4: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60",
+            5: "https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=500&auto=format&fit=crop&q=60"
+        };
+        const defaultImage = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60";
+
+        async function loadCart() {
+            const token = localStorage.getItem('jwtToken');
+            if (!token) {
+                showToast('Vui lòng đăng nhập để xem giỏ hàng!', 'warning');
+                setTimeout(() => window.location.href = 'login.html', 1500);
+                return;
+            }
+
+            try {
+                // GET /api/shop/cart
+                const data = await apiRequest('/shop/cart');
+                cartItems = data || [];
+                renderCart();
+            } catch (err) {
+                if (err.message === 'Unauthorized') return;
+                
+                // If cart is empty, server might return 404
+                cartItems = [];
+                renderCart();
+            }
+        }
+
+        function renderCart() {
+            const list = document.getElementById('cart-items-list');
+            
+            if (cartItems.length === 0) {
+                list.innerHTML = `
+                    <div class="glass-card" style="text-align: center; padding: 4rem; grid-column: 1/-1; width: 100%;">
+                        <div style="font-size: 3.5rem; margin-bottom: 1rem;">📭</div>
+                        <h3 style="margin-bottom: 0.5rem;">Giỏ hàng của bạn đang trống</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">Hãy quay lại cửa hàng để chọn những sản phẩm ưng ý nhất.</p>
+                        <button onclick="window.location.href='index.html'" class="btn-primary">Mua Sắm Ngay</button>
+                    </div>
+                `;
+                document.getElementById('cart-subtotal').innerText = '$0.00';
+                document.getElementById('cart-total').innerText = '$0.00';
+                return;
+            }
+
+            list.innerHTML = '';
+            let total = 0;
+
+            cartItems.forEach(item => {
+                const product = item.product;
+                const prodId = product.id || product.productId;
+                const imgUrl = backupImages[prodId] || defaultImage;
+                const price = product.price;
+                const quantity = item.quantity;
+                const subTotal = price * quantity;
+                total += subTotal;
+
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'cart-item';
+                itemDiv.innerHTML = `
+                    <img src="${imgUrl}" alt="${product.productName}" class="cart-item-img">
+                    <div>
+                        <div class="product-title" style="font-size: 1.1rem; margin-bottom: 0.2rem;">${product.productName}</div>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase;">Mã SP: #${prodId}</span>
+                    </div>
+                    <div class="product-price" style="font-size: 1.1rem;">$${price.toFixed(2)}</div>
+                    <div class="quantity-control">
+                        <button class="qty-btn" onclick="updateQty(${prodId}, ${quantity - 1})">-</button>
+                        <span style="font-weight: 600; width: 20px; text-align: center;">${quantity}</span>
+                        <button class="qty-btn" onclick="updateQty(${prodId}, ${quantity + 1})">+</button>
+                    </div>
+                    <button class="delete-item-btn" onclick="removeItem(${prodId})">🗑️</button>
+                `;
+                list.appendChild(itemDiv);
+            });
+
+            document.getElementById('cart-subtotal').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('cart-total').innerText = `$${total.toFixed(2)}`;
+        }
+
+        async function updateQty(productId, newQty) {
+            if (newQty <= 0) {
+                removeItem(productId);
+                return;
+            }
+
+            try {
+                // Post mapping: /cart?productId=X&quantity=Y
+                // Since this POST endpoint sets absolute or delta qty?
+                // Looking at CartServiceImpl.java:
+                // check if exist -> changeItemQuantity(cartId, productId, quantity)
+                // In changeItemQuantity: item.setQuantity(quantity); (it replaces the quantity, not adds it!)
+                // Wait! Let's check CartController:
+                // If exist: cartService.changeItemQuantity(cartId, productId, quantity);
+                // Yes, it replaces the quantity with the parameter value!
+                await apiRequest(`/shop/cart?productId=${productId}&quantity=${newQty}`, {
+                    method: 'POST'
+                });
+                showToast('Đã cập nhật số lượng sản phẩm!');
+                loadCart();
+            } catch (err) {
+                showToast('Không thể cập nhật số lượng sản phẩm.', 'error');
+            }
+        }
+
+        async function removeItem(productId) {
+            try {
+                // DELETE /cart?productId=X
+                await apiRequest(`/shop/cart?productId=${productId}`, {
+                    method: 'DELETE'
+                });
+                showToast('Đã xoá sản phẩm khỏi giỏ hàng!');
+                loadCart();
+            } catch (err) {
+                showToast('Không thể xoá sản phẩm.', 'error');
+            }
+        }
+
+        async function checkout() {
+            if (cartItems.length === 0) {
+                showToast('Giỏ hàng trống, không thể thanh toán!', 'warning');
+                return;
+            }
+
+            const username = localStorage.getItem('username');
+            if (!username) {
+                showToast('Vui lòng đăng nhập lại.', 'error');
+                window.location.href = 'login.html';
+                return;
+            }
+
+            try {
+                // 1. Get userId from user-service using username
+                const user = await apiRequest(`/accounts/users?name=${username}`);
+                if (!user || !user.id) {
+                    throw new Error('Không tìm thấy thông tin tài khoản người dùng.');
+                }
+
+                const userId = user.id;
+
+                // 2. Call POST /api/shop/order/{userId} to place order
+                showToast('Đang tiến hành đặt hàng...');
+                const order = await apiRequest(`/shop/order/${userId}`, {
+                    method: 'POST'
+                });
+
+                showToast('🎉 Đặt hàng thành công! Kafka đang xử lý thanh toán và giao hàng.', 'success');
+                
+                // Clear cart display
+                cartItems = [];
+                renderCart();
+            } catch (err) {
+                showToast(err.message || 'Đặt hàng thất bại. Vui lòng thử lại!', 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCart();
+        });
+    </script>
+</body>
+</html>

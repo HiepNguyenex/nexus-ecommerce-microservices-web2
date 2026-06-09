@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chi Tiết Sản Phẩm - Rainbow Forest</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="bg-glow glow-1"></div>
+    <div class="bg-glow glow-2"></div>
+
+    <nav>
+        <div class="logo" onclick="window.location.href='index.html'">🌈 Rainbow Forest</div>
+        <div id="user-menu" class="nav-buttons">
+            <button onclick="window.location.href='login.html'" class="btn-primary">Đăng Nhập</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Back Button -->
+        <button onclick="window.location.href='index.html'" class="btn-secondary" style="margin-bottom: 2rem; padding: 0.5rem 1.2rem;">
+            ← Quay Lại Cửa Hàng
+        </button>
+
+        <!-- Product Details -->
+        <div class="glass-card" id="product-detail-card">
+            <div style="text-align: center; padding: 3rem; color: var(--text-secondary)">
+                🔄 Đang tải thông tin sản phẩm...
+            </div>
+        </div>
+
+        <!-- Reviews & Recommendations Section -->
+        <div class="review-section">
+            <h2 style="font-size: 1.8rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                💬 Đánh Giá Từ Khách Hàng
+            </h2>
+            
+            <div id="reviews-list">
+                <!-- Reviews will load here -->
+                <div class="review-card" style="text-align: center; color: var(--text-secondary);">
+                    Chưa có đánh giá nào cho sản phẩm này.
+                </div>
+            </div>
+
+            <!-- Write Review Form -->
+            <div class="glass-card" style="margin-top: 2rem; padding: 2rem;">
+                <h3 style="margin-bottom: 1.5rem;">Viết đánh giá của bạn</h3>
+                <form id="review-form" onsubmit="submitReview(event)">
+                    <div class="form-group">
+                        <label for="review-rating">Xếp hạng (1 - 5 Sao)</label>
+                        <select id="review-rating" class="form-control" style="max-width: 150px;" required>
+                            <option value="5">⭐⭐⭐⭐⭐ (5/5)</option>
+                            <option value="4">⭐⭐⭐⭐ (4/5)</option>
+                            <option value="3">⭐⭐⭐ (3/5)</option>
+                            <option value="2">⭐⭐ (2/5)</option>
+                            <option value="1">⭐ (1/5)</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary">Gửi Đánh Giá</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        let product = null;
+        let productId = null;
+
+        const backupImages = {
+            1: "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=500&auto=format&fit=crop&q=60",
+            2: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=500&auto=format&fit=crop&q=60",
+            3: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&auto=format&fit=crop&q=60",
+            4: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500&auto=format&fit=crop&q=60",
+            5: "https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=500&auto=format&fit=crop&q=60"
+        };
+        const defaultImage = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=60";
+
+        async function loadProductDetail() {
+            const params = new URLSearchParams(window.location.search);
+            productId = params.get('id');
+            if (!productId) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            try {
+                // Fetch product details
+                product = await apiRequest(`/catalog/products/${productId}`);
+                renderProductDetail();
+                loadReviews();
+            } catch (err) {
+                showToast('Không thể tải thông tin sản phẩm.', 'error');
+                document.getElementById('product-detail-card').innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: var(--danger)">
+                        ❌ Lỗi kết nối API Gateway. Không thể tải thông tin sản phẩm.
+                    </div>
+                `;
+            }
+        }
+
+        function renderProductDetail() {
+            const card = document.getElementById('product-detail-card');
+            const imgUrl = backupImages[product.id] || defaultImage;
+            
+            card.innerHTML = `
+                <div class="product-detail-layout">
+                    <div>
+                        <img src="${imgUrl}" alt="${product.productName}" class="detail-img">
+                    </div>
+                    <div style="display: flex; flex-direction: column; justify-content: center;">
+                        <span class="product-category" style="font-size: 0.9rem; margin-bottom: 0.8rem; display: inline-block;">
+                            ${product.category || 'General'}
+                        </span>
+                        <h1 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 1rem; line-height: 1.2;">
+                            ${product.productName}
+                        </h1>
+                        <div class="product-price" style="font-size: 2rem; margin-bottom: 1.5rem;">
+                            $${product.price.toFixed(2)}
+                        </div>
+                        <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 2rem; font-size: 1.1rem;">
+                            ${product.discription || 'Sản phẩm chất lượng cao đến từ thương hiệu uy tín, được phân phối trực tiếp qua hệ thống Rainbow Forest.'}
+                        </p>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <button class="btn-primary" style="padding: 0.8rem 2.5rem; font-size: 1.1rem;" onclick="addToCart(${product.id}, '${product.productName.replace(/'/g, "\\'")}')">
+                                🛒 Thêm Vào Giỏ Hàng
+                            </button>
+                            <span style="color: var(--text-secondary); font-size: 0.9rem;">
+                                Tình trạng: <strong style="color: var(--success)">Còn hàng (${product.availability || 10} sản phẩm)</strong>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadReviews() {
+            const list = document.getElementById('reviews-list');
+            try {
+                // Call product-recommendation-service via Gateway
+                // Path: /review/recommendations/products/{productId}
+                const reviews = await apiRequest(`/review/recommendations/products/${productId}`);
+                
+                if (!reviews || reviews.length === 0) {
+                    list.innerHTML = `
+                        <div class="review-card" style="text-align: center; color: var(--text-secondary);">
+                            Chưa có đánh giá nào cho sản phẩm này. Hãy là người đầu tiên đánh giá!
+                        </div>
+                    `;
+                    return;
+                }
+
+                list.innerHTML = '';
+                reviews.forEach(rev => {
+                    const stars = '⭐'.repeat(rev.rating) + '☆'.repeat(5 - rev.rating);
+                    const card = document.createElement('div');
+                    card.className = 'review-card';
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.8rem;">
+                            <strong>👤 ${rev.user ? rev.user.userName : 'Ẩn danh'}</strong>
+                            <span class="rating-stars">${stars}</span>
+                        </div>
+                        <p style="color: var(--text-secondary);">Sản phẩm được đánh giá ${rev.rating}/5 sao từ khách hàng mua hàng thực tế.</p>
+                    `;
+                    list.appendChild(card);
+                });
+
+            } catch (err) {
+                list.innerHTML = `
+                    <div class="review-card" style="text-align: center; color: var(--warning);">
+                        ⚠️ Không thể tải đánh giá từ dịch vụ đề xuất (Recommendation Service).
+                    </div>
+                `;
+            }
+        }
+
+        async function submitReview(e) {
+            e.preventDefault();
+            const token = localStorage.getItem('jwtToken');
+            if (!token) {
+                showToast('Bạn phải đăng nhập để viết đánh giá!', 'warning');
+                setTimeout(() => window.location.href = 'login.html', 1500);
+                return;
+            }
+
+            const rating = document.getElementById('review-rating').value;
+
+            try {
+                // Call recommendation-service to save review
+                // Post mapping: /review/recommendations?productId=X&userName=Y&rating=Z
+                const username = localStorage.getItem('username');
+                await apiRequest(`/review/recommendations?productId=${productId}&userName=${username}&rating=${rating}`, {
+                    method: 'POST'
+                });
+
+                showToast('Đã gửi đánh giá thành công!');
+                loadReviews(); // Reload list
+            } catch (err) {
+                showToast('Không thể gửi đánh giá.', 'error');
+            }
+        }
+
+        async function addToCart(productId, productName) {
+            const token = localStorage.getItem('jwtToken');
+            if (!token) {
+                showToast('Vui lòng đăng nhập trước khi mua hàng!', 'warning');
+                setTimeout(() => window.location.href = 'login.html', 1500);
+                return;
+            }
+
+            try {
+                await apiRequest(`/shop/cart?productId=${productId}&quantity=1`, {
+                    method: 'POST'
+                });
+                showToast(`Đã thêm '${productName}' vào giỏ hàng thành công!`);
+            } catch (err) {
+                showToast('Không thể thêm sản phẩm vào giỏ hàng.', 'error');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProductDetail();
+        });
+    </script>
+</body>
+</html>

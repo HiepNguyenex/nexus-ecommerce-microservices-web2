@@ -1,0 +1,27 @@
+# Maven
+target/
+**/target/
+*.jar
+*.war
+*.ear
+
+# Logs
+logs/
+*.log
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.settings/
+.project/
+.classpath/
+bin/
+**/bin/
+
+# Temporary and Zip files
+*.zip
+*.tar.gz
+*.tgz
+tmp/
+temp/
