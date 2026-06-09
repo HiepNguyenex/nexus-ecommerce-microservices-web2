@@ -25,3 +25,7 @@ bin/
 *.tgz
 tmp/
 temp/
+
+# Local-only files (not pushed to GitHub)
+SUMMARY_BAI_TAP_4.md
+docker-compose.yml
