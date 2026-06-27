@@ -7,6 +7,8 @@ import com.rainbowforest.recommendationservice.model.Product;
 import com.rainbowforest.recommendationservice.model.Recommendation;
 import com.rainbowforest.recommendationservice.model.User;
 import com.rainbowforest.recommendationservice.service.RecommendationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +18,8 @@ import java.util.List;
 
 @RestController
 public class RecommendationController {
+
+    private static final Logger log = LoggerFactory.getLogger(RecommendationController.class);
 
     @Autowired
     private RecommendationService recommendationService;
@@ -70,10 +74,8 @@ public class RecommendationController {
 						headerGenerator.getHeadersForSuccessPostMethod(request, recommendation.getId()),
 						HttpStatus.CREATED);
 			}catch (Exception e) {
-				e.printStackTrace();
-				return new ResponseEntity<Recommendation>(
-						headerGenerator.getHeadersForError(),
-						HttpStatus.INTERNAL_SERVER_ERROR);
+				log.error("Failed to create recommendation", e);
+				throw new RuntimeException("Failed to create recommendation", e);
 			}
 		}
         return new ResponseEntity<Recommendation>(
@@ -91,10 +93,8 @@ public class RecommendationController {
     					headerGenerator.getHeadersForSuccessGetMethod(),
     					HttpStatus.OK);
     		}catch (Exception e) {
-    			e.printStackTrace();
-    			return new ResponseEntity<Void>(
-    					headerGenerator.getHeadersForError(),
-    					HttpStatus.INTERNAL_SERVER_ERROR);	
+    			log.error("Failed to delete recommendation id={}", id, e);
+				throw new RuntimeException("Failed to delete recommendation", e);
     		}
     	}
     	return new ResponseEntity<Void>(

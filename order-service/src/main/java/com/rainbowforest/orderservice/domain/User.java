@@ -21,27 +21,38 @@ public class User {
     @JsonIgnore
     private List<Order> orders;
 
+    @Transient
+    private UserDetails userDetails;
+
     public Long getId() {
-        return id;
-    }
+		return id;
+	}
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+	public void setId(Long id) {
+		this.id = id;
+	}
 
-    public String getUserName() {
-        return userName;
-    }
+	public String getUserName() {
+		return userName;
+	}
 
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
+	public void setUserName(String userName) {
+		this.userName = userName;
+	}
 
-    public List<Order> getOrders() {
-        return orders;
-    }
+	public List<Order> getOrders() {
+		return orders;
+	}
 
-    public void setOrders(List<Order> orders) {
-        this.orders = orders;
-    }
+	public void setOrders(List<Order> orders) {
+		this.orders = orders;
+	}
+
+	public UserDetails getUserDetails() {
+		return userDetails;
+	}
+
+	public void setUserDetails(UserDetails userDetails) {
+		this.userDetails = userDetails;
+	}
 }

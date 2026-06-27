@@ -3,6 +3,8 @@ package com.rainbowforest.productcatalogservice.controller;
 import com.rainbowforest.productcatalogservice.entity.Product;
 import com.rainbowforest.productcatalogservice.http.header.HeaderGenerator;
 import com.rainbowforest.productcatalogservice.service.ProductService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +14,8 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/admin")
 public class AdminProductController {
+
+    private static final Logger log = LoggerFactory.getLogger(AdminProductController.class);
 
     @Autowired
     private ProductService productService;
@@ -29,10 +33,8 @@ public class AdminProductController {
     	        		headerGenerator.getHeadersForSuccessPostMethod(request, product.getId()),
     	        		HttpStatus.CREATED);
     		}catch (Exception e) {
-				e.printStackTrace();
-				return new ResponseEntity<Product>(
-						headerGenerator.getHeadersForError(),
-						HttpStatus.INTERNAL_SERVER_ERROR);
+				log.error("Failed to add product", e);
+				throw new RuntimeException("Failed to add product", e);
 			}
     	}
     	return new ResponseEntity<Product>(
@@ -50,10 +52,8 @@ public class AdminProductController {
     	        		headerGenerator.getHeadersForSuccessGetMethod(),
     	        		HttpStatus.OK);
     		}catch (Exception e) {
-				e.printStackTrace();
-    	        return new ResponseEntity<Void>(
-    	        		headerGenerator.getHeadersForError(),
-    	        		HttpStatus.INTERNAL_SERVER_ERROR);
+				log.error("Failed to delete product id={}", id, e);
+				throw new RuntimeException("Failed to delete product", e);
 			}
     	}
     	return new ResponseEntity<Void>(headerGenerator.getHeadersForError(), HttpStatus.NOT_FOUND);      

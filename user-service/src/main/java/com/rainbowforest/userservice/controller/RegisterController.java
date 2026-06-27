@@ -3,6 +3,8 @@ package com.rainbowforest.userservice.controller;
 import com.rainbowforest.userservice.entity.User;
 import com.rainbowforest.userservice.http.header.HeaderGenerator;
 import com.rainbowforest.userservice.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +15,8 @@ import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 public class RegisterController {
+
+    private static final Logger log = LoggerFactory.getLogger(RegisterController.class);
 
     @Autowired
     private UserService userService;
@@ -30,8 +34,8 @@ public class RegisterController {
     					headerGenerator.getHeadersForSuccessPostMethod(request, user.getId()),
     					HttpStatus.CREATED);
     		}catch (Exception e) {
-    			e.printStackTrace();
-    			return new ResponseEntity<User>(HttpStatus.INTERNAL_SERVER_ERROR);
+    			log.error("Failed to register user", e);
+			throw new RuntimeException("Failed to register user", e);
 		}
     	return new ResponseEntity<User>(HttpStatus.BAD_REQUEST);
     }

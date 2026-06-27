@@ -25,6 +25,18 @@ public class Order {
     @Column (name = "total")
     private BigDecimal total;
 
+    @Column(name = "shipping_phone", length = 15)
+    private String shippingPhone;
+
+    @Column(name = "shipping_email", length = 50)
+    private String shippingEmail;
+
+    @Column(name = "shipping_full_name", length = 100)
+    private String shippingFullName;
+
+    @Column(name = "shipping_address", length = 255)
+    private String shippingAddress;
+
     @ManyToMany (cascade = CascadeType.ALL)
     @JoinTable (name = "cart" , joinColumns = @JoinColumn(name = "order_id"), inverseJoinColumns = @JoinColumn (name = "item_id"))
     private List<Item> items;
@@ -61,12 +73,44 @@ public class Order {
 		this.status = status;
 	}
 
-	public BigDecimal getTotal() {
+    public BigDecimal getTotal() {
 		return total;
 	}
 
 	public void setTotal(BigDecimal total) {
 		this.total = total;
+	}
+
+	public String getShippingPhone() {
+		return shippingPhone;
+	}
+
+	public void setShippingPhone(String shippingPhone) {
+		this.shippingPhone = shippingPhone;
+	}
+
+	public String getShippingEmail() {
+		return shippingEmail;
+	}
+
+	public void setShippingEmail(String shippingEmail) {
+		this.shippingEmail = shippingEmail;
+	}
+
+	public String getShippingFullName() {
+		return shippingFullName;
+	}
+
+	public void setShippingFullName(String shippingFullName) {
+		this.shippingFullName = shippingFullName;
+	}
+
+	public String getShippingAddress() {
+		return shippingAddress;
+	}
+
+	public void setShippingAddress(String shippingAddress) {
+		this.shippingAddress = shippingAddress;
 	}
 
 	public List<Item> getItems() {

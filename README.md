@@ -1,134 +1,449 @@
-# Hệ Thống Microservices Thương Mại Điện Tử - Rainbow Forest 🌈
+# 🌈 Hệ Thống Microservices Thương Mại Điện Tử — Rainbow Forest
 
-Hệ thống E-Commerce được xây dựng trên kiến trúc **Spring Cloud Microservices** hiện đại, tích hợp **Aiven Cloud Kafka** để xử lý các sự kiện không đồng bộ và bảo mật toàn diện bằng **JWT & BCrypt Password Encoder**.
+> **Đồ án Lab 1 + Lab 2** · Spring Cloud Microservices · Java 21 · Spring Boot 3.2.4
 
----
-
-## 🗺️ Kiến Trúc Hệ Thống & Cổng Dịch Vụ
-
-Hệ thống bao gồm các microservices được đăng ký và định tuyến qua Eureka và API Gateway:
-
-```mermaid
-graph TD
-    Client[Web Client: Port 5500] -->|HTTP Request| Gateway[API Gateway: Port 8900]
-    Gateway -->|Route & Authentication| Eureka{Eureka Server: Port 8761}
-    
-    subgraph Microservices
-        User[User Service: Port 8811]
-        Catalog[Product Catalog: Port 8810]
-        Rec[Recommendation: Port 8812]
-        Order[Order Service: Port 8813]
-        Payment[Payment Service: Port 8815]
-        Inventory[Inventory Service: Port 8816]
-        Notif[Notification Service: Port 8817]
-    end
-    
-    Eureka -.-> User
-    Eureka -.-> Catalog
-    Eureka -.-> Rec
-    Eureka -.-> Order
-    Eureka -.-> Payment
-    Eureka -.-> Inventory
-    Eureka -.-> Notif
-
-    subgraph Messaging & Database
-        Kafka[Aiven Cloud Kafka]
-        MySQL[(MySQL: Port 3306)]
-    end
-    
-    Order <-->|Kafka Events| Payment
-    Order <--> MySQL
-    User <--> MySQL
-    Rec <--> MySQL
-```
-
-### Danh Sách Cổng (Ports) & Nhiệm Vụ:
-* **Eureka Server** (`8761`): Đăng ký và quản lý khám phá dịch vụ (Service Discovery).
-* **API Gateway** (`8900`): Định tuyến động, xử lý CORS, kiểm tra token JWT tại bộ lọc `JwtAuthenticationFilter`.
-* **User Service** (`8811`): Quản lý tài khoản, mã hóa mật khẩu bằng BCrypt, khóa/mở khóa tài khoản.
-* **Product Catalog Service** (`8810`): Quản lý danh mục sản phẩm (H2 database).
-* **Product Recommendation Service** (`8812`): Đánh giá sản phẩm, gợi ý mua sắm (MySQL database).
-* **Order Service** (`8813`): Quản lý giỏ hàng (in-memory mock Redis) và tạo đơn hàng (MySQL database).
-* **Payment Service** (`8815`): Giả lập và xử lý thanh toán đơn hàng (H2 database).
-* **Inventory Service** (`8816`): Quản lý kho hàng (H2 database).
-* **Notification Service** (`8817`): Thu thập sự kiện và ghi vết thông báo hệ thống.
-* **Web Client** (`5500`): Giao diện người dùng và Admin Panel (HTML/CSS/JS thuần).
+Hệ thống e-commerce gồm **9 microservices** giao tiếp đồng bộ (REST + OpenFeign) và bất đồng bộ (Kafka), bảo mật bằng **JWT + BCrypt**, lưu trữ phân tán (MySQL + H2 + Redis embedded + MongoDB-style logs), quản lý bởi **Eureka Service Discovery** và định tuyến qua **Spring Cloud Gateway**.
 
 ---
 
-## 🛠️ Công Nghệ Sử Dụng
+## ⚡ Hướng Dẫn Chạy Dự Án
 
-* **Core**: Java 21, Spring Boot 3.2.4, Spring Cloud 2023.0.0 (Gateway, Eureka, OpenFeign)
-* **Bảo mật**: Spring Security, JWT Token, BCrypt Password Encoder
-* **Truyền thông điệp (Messaging)**: **Aiven Cloud Kafka** sử dụng cơ chế bảo mật **SASL_SSL** (SCRAM-SHA-256) và xác thực chứng chỉ SSL qua Truststore.
-* **Cơ sở dữ liệu**: MySQL 8.0 (phục vụ dữ liệu người dùng, đơn hàng, đề xuất) và H2 Database (in-memory phục vụ catalog, thanh toán, kho).
+> ⏱ **Lần đầu chạy**: ~10-15 phút (bao gồm build)
+> ⏱ **Lần sau**: ~1 phút (chỉ start services)
 
 ---
 
-## 🔄 Luồng Sự Kiện Đặt Hàng E2E (Kafka Events)
+### 🎯 Cách 1: Chạy nhanh (đã build sẵn)
 
-Quy trình thanh toán hoạt động hoàn toàn tự động và không đồng bộ thông qua các topic Kafka trên đám mây:
+Dùng khi bạn **đã build** project rồi, chỉ cần chạy lại:
 
-1. **Tạo Đơn Hàng**: Khi người dùng nhấn nút đặt hàng từ Web Client, một yêu cầu `POST /api/shop/order/{userId}` được gửi tới `order-service`. Đơn hàng được lưu lại với trạng thái mặc định là `PAYMENT_EXPECTED`.
-2. **Phát Sự Kiện OrderCreated**: `order-service` phát sự kiện `OrderCreatedEvent` lên topic `order-created` của Aiven Kafka.
-3. **Thanh Toán**: 
-   * `payment-service` lắng nghe từ topic `order-created`, ghi nhận thông tin thanh toán thành công và lưu lịch sử.
-   * Đồng thời, phát sự kiện `PaymentCompletedEvent` lên topic `payment-completed`.
-4. **Cập Nhật Đơn Hàng**: `order-service` lắng nghe topic `payment-completed` và tự động cập nhật trạng thái đơn hàng tương ứng thành `PAID` trong MySQL.
-5. **Đồng Bộ Khác**: `inventory-service` và `notification-service` cũng lắng nghe sự kiện trên các topic này để giảm trừ số lượng tồn kho và ghi nhật ký thông báo.
-
----
-
-## 🚀 Hướng Dẫn Khởi Chạy Hệ Thống
-
-### 1. Chuẩn bị Cơ sở dữ liệu MySQL
-* Hãy đảm bảo MySQL đang chạy tại cổng `3306` của localhost.
-* Chạy tập lệnh sau trong PowerShell để tạo các cơ sở dữ liệu và nạp dữ liệu mẫu:
-  ```powershell
-  Get-Content seed.sql | C:\xampp\mysql\bin\mysql.exe -u root
-  ```
-
-### 2. Biên dịch Dự án
-* Chạy script biên dịch toàn bộ các microservices (sử dụng JDK 21):
-  ```powershell
-  Set-ExecutionPolicy Bypass -Scope Process
-  .\build_all.ps1
-  ```
-
-### 3. Khởi chạy Các Microservices
-* Chạy tất cả các dịch vụ ở chế độ chạy nền (background processes) và chuyển hướng log ra thư mục `\logs`:
-  ```powershell
-  .\run_all_background.ps1
-  ```
-  *(Hoặc chạy lệnh `.\run_all.ps1` để khởi chạy từng cửa sổ CMD riêng biệt).*
-
-### 4. Khởi chạy Frontend Web Client
-* Khởi động máy chủ web cục bộ tại cổng `5500`:
-  ```powershell
-  python -m http.server 5500
-  ```
-
----
-
-## 🧪 Kịch Bản Kiểm Thử & Xác Thực Hệ Thống
-
-Dự án cung cấp sẵn tệp script PowerShell tự động kiểm thử toàn bộ luồng nghiệp vụ:
 ```powershell
-.\verify_flow.ps1
+# Bước 1: Bật MySQL (XAMPP Control Panel → Start MySQL)
+# Bước 2: Khởi động tất cả services
+.\start_with_env.ps1
+
+# Bước 3: Mở terminal khác → chạy web client
+cd web-client
+python -m http.server 5500
 ```
 
-### Kịch bản tự động bao gồm:
-1. Đăng nhập tài khoản `johndoe` / `password123` để nhận mã JWT Token.
-2. Thêm sản phẩm vào giỏ hàng và thực hiện Checkout đơn hàng.
-3. Chờ 5 giây cho luồng Kafka lan truyền qua Aiven Cloud, sau đó kiểm tra trạng thái đơn hàng tự động chuyển sang `PAID`.
-4. Đăng nhập tài khoản Admin (`janesmith` / `password456`).
-5. Kiểm thử chức năng **Khóa tài khoản** người dùng `johndoe`, xác thực việc đăng nhập bị từ chối khi tài khoản bị khóa.
-6. **Mở khóa tài khoản** và phục hồi trạng thái hoạt động của người dùng.
-7. Lấy danh sách toàn bộ các đánh giá đề xuất và tiến hành xóa thử một đề xuất.
+✅ Mở trình duyệt: **http://localhost:5500**  
+✅ Đăng nhập: `user` / `123456` hoặc `admin` / `123456`
 
 ---
 
-## 🖥️ Trải Nghiệm Giao Diện Người Dùng
-* **Giao diện mua sắm**: [http://localhost:5500/index.html](http://localhost:5500/index.html) (Đăng nhập `johndoe` / `password123`)
-* **Giao diện Admin Panel**: [http://localhost:5500/admin.html](http://localhost:5500/admin.html) (Đăng nhập `janesmith` / `password456` để quản trị sản phẩm, đơn hàng, khóa người dùng và quản lý đề xuất).
-* **Eureka Dashboard**: [http://localhost:8761/](http://localhost:8761/)
+### 📋 Cách 2: Chạy từ đầu (đầy đủ chi tiết)
+
+#### Bước 1: Kiểm tra môi trường
+
+Mở **PowerShell** và kiểm tra:
+
+```powershell
+java -version
+# Kết quả: java 21.0.x
+
+cd "D:\Bai Tap\java-project\e-commerce-microservices-master"
+.\mvnw.cmd --version
+# Kết quả: Apache Maven 3.9.x
+```
+
+#### Bước 2: Khởi động MySQL
+
+Mở **XAMPP Control Panel** → Bấm **Start** ở dòng **MySQL**.
+
+> **Lưu ý:** 
+> - Port mặc định: `3306`
+> - User: `root`
+> - Password: *(để trống)*
+> - Nếu dùng MySQL khác, sửa trong file `.env`
+
+Kiểm tra MySQL đã chạy:
+```powershell
+mysql -u root -p
+# (Enter password để trống)
+```
+
+#### Bước 3: Tạo file .env (chỉ làm 1 lần)
+
+```powershell
+cd "D:\Bai Tap\java-project\e-commerce-microservices-master"
+Copy-Item .env.example .env
+```
+
+📝 **Nội dung file `.env` mặc định:**
+```ini
+JWT_SECRET=mySecretKeyForEcommerceMicroservicesApplicationLongEnough
+KAFKA_BOOTSTRAP_SERVERS=...  # Aiven Cloud Kafka
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USERNAME=root
+MYSQL_PASSWORD=               # để trống
+```
+
+> File `.env` đã được cấu hình sẵn để chạy với XAMPP mặc định.
+
+#### Bước 4: Build tất cả services (lần đầu tiên)
+
+```powershell
+.\build_all.ps1
+```
+
+> ⏱ **Mất ~5 phút** cho lần build đầu tiên (Maven tải dependencies).
+> 
+> Script này sẽ build **6 services**:
+> `order-service`, `payment-service`, `inventory-service`,
+> `notification-service`, `user-service`, `product-recommendation-service`
+>
+> *Riêng `eureka-server`, `api-gateway`, `product-catalog-service` đã build sẵn.*
+
+#### Bước 5: Khởi động toàn bộ hệ thống
+
+```powershell
+.\start_with_env.ps1
+```
+
+Script sẽ khởi động lần lượt theo thứ tự:
+
+| Thứ tự | Service | Port | ⏱ |
+|:---:|---|:---:|:---:|
+| 1 | **Eureka Server** | 8761 | Khởi động trước |
+| 2 | **API Gateway** | 8900 | → |
+| 3 | **User Service** | 8811 | → Sau Eureka 12s |
+| 4 | **Product Catalog** | 8810 | → |
+| 5 | **Product Recommendation** | 8812 | → |
+| 6 | **Order Service** (+ Redis) | 8813 | → |
+| 7 | **Payment Service** | 8815 | → |
+| 8 | **Inventory Service** | 8816 | → |
+| 9 | **Notification Service** | 8817 | → |
+
+> ⏱ Đợi **~40 giây** để tất cả services khởi động xong.
+> 
+> Kiểm tra: http://localhost:8761 → phải thấy **9 services** đều **UP**.
+>
+> *Nếu không có Kafka, các services vẫn chạy nhưng thiếu luồng xử lý bất đồng bộ.*
+
+#### Bước 6: Mở Web Client
+
+```powershell
+# Mở terminal MỚI (giữ nguyên terminal cũ đang chạy services)
+cd "D:\Bai Tap\java-project\e-commerce-microservices-master\web-client"
+python -m http.server 5500
+```
+
+✅ Mở trình duyệt: **http://localhost:5500**
+
+> ⚠️ **Phải** dùng `http://localhost:5500`, **KHÔNG** dùng `file://` để tránh lỗi CORS.
+
+#### Bước 7: Đăng nhập và sử dụng
+
+| Tài khoản | Mật khẩu | Quyền | Chức năng |
+|:---|---|:---:|---|
+| `admin` | `123456` | `ROLE_ADMIN` | Xem doanh thu, quản lý sản phẩm, quản lý đơn hàng |
+| `user` | `123456` | `ROLE_USER` | Xem sản phẩm, giỏ hàng, đặt hàng, đánh giá |
+| `johndoe` | `password123` | `ROLE_USER` | Người dùng mẫu |
+| `janesmith` | `password456` | `ROLE_ADMIN` | Admin mẫu |
+
+#### Bước 8: Xem log (khi cần debug)
+
+```powershell
+# Xem log realtime của từng service
+Get-Content "D:\Bai Tap\java-project\e-commerce-microservices-master\logs\order.log" -Wait -Tail 50
+Get-Content "D:\Bai Tap\java-project\e-commerce-microservices-master\logs\gateway.log" -Wait -Tail 50
+Get-Content "D:\Bai Tap\java-project\e-commerce-microservices-master\logs\user.log" -Wait -Tail 50
+
+# Các file log có sẵn:
+# logs\eureka.log, gateway.log, user.log, catalog.log,
+# recommendation.log, order.log, payment.log, inventory.log, notification.log
+```
+
+#### Bước 9: Dừng toàn bộ (khi không dùng nữa)
+
+**Cách 1 - Dừng nhanh:**
+```powershell
+# Dừng tất cả Java processes
+Get-Process -Name java | Stop-Process -Force
+
+# Dừng Python web server (nếu cần)
+Get-Process -Name python | Where-Object { $_.Path -like '*Python312*' } | Stop-Process -Force
+```
+
+**Cách 2 - Dùng script:**
+```powershell
+.\stop_all.ps1
+```
+
+---
+
+### 🐳 Cách 3: Chạy với Kafka local (Docker)
+
+Nếu muốn chạy Kafka local thay vì dùng Aiven Cloud:
+
+```powershell
+# Bước 1: Cài Docker Desktop và khởi động
+# Bước 2: Chạy Kafka + Zookeeper
+cd "D:\Bai Tap\java-project\e-commerce-microservices-master"
+docker compose up -d
+
+# Bước 3: Kiểm tra Kafka đã chạy
+docker ps
+# Kết quả: zookeeper (2181) và kafka (9092)
+
+# Bước 4: Chạy services như bình thường
+.\start_with_env.ps1
+```
+
+> 📌 **Lưu ý:** Khi dùng Kafka local, cập nhật `.env`:
+> ```ini
+> KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+> # Xóa các dòng SASL_SSL nếu dùng PLAINTEXT
+> ```
+
+---
+
+## 🗺️ Kiến trúc hệ thống
+
+```
+                ┌──────────────────────────────────────┐
+                │   Web Client (HTML/CSS/JS) :5500     │
+                └────────────────┬─────────────────────┘
+                                 │ JWT
+                ┌────────────────▼─────────────────────┐
+                │   API Gateway (Spring Cloud) :8900   │
+                │   - CORS  - JWT filter - LoadBalance │
+                └────────────────┬─────────────────────┘
+                                 │ Eureka
+                ┌────────────────▼─────────────────────┐
+                │     Eureka Server :8761              │
+                └────────────────┬─────────────────────┘
+                                 │
+   ┌──────────┬──────────┬───────┴────────┬──────────┬──────────┐
+   ▼          ▼          ▼                ▼          ▼          ▼
+ user      product    product           order    payment    inventory
+ :8811     catalog    recommend         :8813    :8815      :8816
+ (MySQL)   :8810      :8812             (MySQL)  (H2)       (H2)
+            (MySQL)    (MySQL)           ▼         ▲          ▲
+                                       │  Kafka   │          │
+                                       └──────────┴──────────┘
+                                                       │
+                                       ┌───────────────▼──────────┐
+                                       │  Notification :8817      │
+                                       │  (MySQL - document log)  │
+                                       └──────────────────────────┘
+
+       Redis embedded :6379 (cart)   |   Aiven Cloud Kafka   |   MySQL :3306
+```
+
+### Luồng sự kiện Saga Pattern (Lab 2)
+
+```
+[User]  --POST /order/-->  order-service
+                              │ 1. Tạo order (PAYMENT_EXPECTED) + snapshot phone/email/address
+                              │ 2. Publish OrderCreatedEvent
+                              ▼
+                          Kafka: order-created
+                              │
+              ┌───────────────┼──────────────────┐
+              ▼               ▼                  ▼
+        payment-service  inventory-service   notification-service
+        (1. lưu payment)  (1. reserve stock)  (1. email user + ADMIN notify)
+              │                                  
+              │ 2. Publish PaymentCompletedEvent
+              ▼
+          Kafka: payment-completed
+              │
+              ▼
+        order-service  ---> set status = PAID
+              │
+        [Admin] --PUT /orders/{id}/status?status=SHIPPED--->
+              │ 3. Publish OrderShippedEvent
+              ▼
+          Kafka: order-shipped
+              │
+        inventory-service ---> trừ kho chính thức
+        notification-service ---> email user giao hàng + ADMIN notify
+```
+
+---
+
+## 📂 Cấu trúc thư mục
+
+```
+e-commerce-microservices-master/
+├── .env.example            # Template biến môi trường
+├── .env                    # Biến thực tế (KHÔNG commit)
+├── README.md               # File này
+├── build_all.ps1           # Build tất cả service
+├── start_with_env.ps1      # Khởi động stack (load .env)
+├── run_all.ps1             # Khởi động không cần .env (fallback)
+├── stop_all.ps1            # Dừng tất cả
+├── setup_mysql_user.sql    # Tạo user MySQL riêng (optional)
+│
+├── eureka-server/          # Port 8761 — Service Discovery
+├── api-gateway/            # Port 8900 — Routing + JWT + CORS
+├── user-service/           # Port 8811 — Đăng ký/đăng nhập (MySQL)
+├── product-catalog-service/# Port 8810 — CRUD sản phẩm (MySQL)
+├── product-recommendation-service/ # Port 8812 — Đánh giá (MySQL)
+├── order-service/          # Port 8813 — Giỏ hàng + đơn hàng (MySQL + Redis embedded)
+├── payment-service/        # Port 8815 — Thanh toán (H2 + Kafka)
+├── inventory-service/      # Port 8816 — Tồn kho (H2 + Kafka)
+├── notification-service/   # Port 8817 — Ghi log + thông báo admin (MySQL + Kafka)
+│
+├── web-client/             # Frontend HTML/CSS/JS
+│   ├── index.html          # Trang chủ
+│   ├── login.html          # Đăng nhập
+│   ├── product.html        # Danh sách sản phẩm
+│   ├── cart.html           # Giỏ hàng
+│   ├── admin.html          # Trang admin
+│   ├── app.js              # Logic frontend
+│   └── styles.css
+│
+└── logs/                   # Log redirect (có thể trống trên Windows)
+```
+
+---
+
+## 🌐 API Endpoints chính
+
+### Qua API Gateway (http://localhost:8900)
+
+| Method | Path | Mô tả | Auth |
+|---|---|---|---|
+| `POST` | `/api/accounts/registration` | Đăng ký user mới | Public |
+| `POST` | `/api/accounts/login` | Đăng nhập → JWT | Public |
+| `GET`  | `/api/accounts/users` | Danh sách users | Admin |
+| `GET`  | `/api/catalog/products` | Danh sách sản phẩm | Public |
+| `GET`  | `/api/review/recommendations` | Gợi ý sản phẩm | Public |
+| `GET`  | `/api/shop/cart` | Xem giỏ hàng | User |
+| `POST` | `/api/shop/cart?productId=&quantity=` | Thêm vào giỏ | User |
+| `POST` | `/api/shop/order/{userId}` | Tạo đơn hàng | User |
+| `PUT`  | `/api/shop/orders/{id}/status?status=` | Cập nhật trạng thái (Lab 2) | User |
+| `GET`  | `/api/admin/revenue` | Thống kê doanh thu (Lab 2) | Admin |
+| `GET`  | `/api/notifications/logs` | Lịch sử thông báo (Lab 2) | Admin |
+| `GET`  | `/api/notifications/logs/stats` | Thống kê notification | Admin |
+
+### Trực tiếp service (port riêng)
+
+| Service | Port | URL gốc |
+|---|---|---|
+| Eureka | 8761 | http://localhost:8761/ |
+| Gateway | 8900 | http://localhost:8900/ |
+| Web Client | 5500 | http://localhost:5500/ |
+
+---
+
+## 🛠️ Tech Stack
+
+| Lớp | Công nghệ |
+|---|---|
+| Ngôn ngữ | **Java 21** |
+| Framework | **Spring Boot 3.2.4** + **Spring Cloud 2023.0.0** |
+| Gateway | Spring Cloud Gateway (WebFlux / Netty) |
+| Service Discovery | Netflix Eureka |
+| Giao tiếp đồng bộ | **OpenFeign** (REST giữa service) |
+| Giao tiếp bất đồng bộ | **Spring Kafka 3.x** + Aiven Cloud Kafka (SASL_SSL) |
+| Bảo mật | **JWT** (jjwt 0.11.5) + **BCrypt** + Spring Security 6 |
+| Database | MySQL 8 (4 service) + H2 in-memory (3 service) |
+| ORM | Spring Data JPA + Hibernate 6.4 |
+| Cache | **Spring Data Redis** + **Embedded Redis** (cart) |
+| Document log | JPA + MySQL (thay cho MongoDB — lý do bên dưới) |
+| Build | **Maven** + Maven Wrapper |
+| Frontend | HTML/CSS/JS thuần |
+
+> **Lưu ý về MongoDB:** Đề bài Lab 2 yêu cầu MongoDB, nhưng môi trường thực tế:
+> - MongoDB server không có sẵn.
+> - Embedded MongoDB (`de.flapdoodle.embed.mongo`) download binary từ `fastdl.mongodb.org` **rất chậm** (~100MB, mất 15+ phút, dễ timeout).
+> - **Giải pháp:** dùng **JPA + MySQL** với cấu trúc `@Entity` giống document. Khi có MongoDB server, chỉ cần đổi dependency là chạy được.
+
+---
+
+## ✅ Tính năng đã hoàn thành
+
+### Lab 1 — Microservices cơ bản
+- [x] 9 microservices + Eureka + Gateway
+- [x] JWT auth + BCrypt
+- [x] Kafka E2E flow: `order-created → payment-completed → PAID`
+- [x] MySQL + H2 mix
+- [x] Web client (user) + Admin panel
+- [x] Verify script (`verify_flow.ps1`)
+
+### Lab 2 — Saga Pattern + NoSQL
+
+| Câu | Yêu cầu | Giải pháp | File chính |
+|---|---|---|---|
+| **1.1** | Đơn hàng `SHIPPED` → kho cập nhật đúng số lượng | **Saga pattern** qua Kafka topic `order-shipped`; status flow `PAYMENT_EXPECTED → PAID → SHIPPED` | `OrderController.java` (PUT status), `OrderProducer.java`, `OrderConsumer.java` (inventory) |
+| **1.2** | Đổi SĐT/email/địa chỉ → đơn hàng cũ giữ thông tin cũ | **Snapshot** `shippingPhone`/`shippingEmail`/`shippingFullName`/`shippingAddress` lúc tạo order | `Order.java`, `OrderController.createOrder()` |
+| **1.3** | Thống kê doanh thu | Endpoint `GET /api/admin/revenue?from=&to=` aggregate tổng `total` các order `PAID/SHIPPED/COMPLETED` | `OrderRepository.java`, `RevenueReport.java`, `OrderServiceImpl.java` |
+| **1.4** | Thông báo hệ thống cho admin | Notification log riêng target=`ADMIN`, lưu MySQL, có flag `HIGH-VALUE` cho đơn > 1000 VND | `NotificationConsumer.java` |
+| **2** | Redis + MongoDB | **Redis embedded** (cart thay vì in-memory); **MySQL** lưu `notification_logs` thay cho MongoDB | `RedisConfig.java`, `CartRedisRepositoryImpl.java`, `NotificationLog.java` |
+
+---
+
+## 🧪 Test thủ công (happy path)
+
+1. Mở http://localhost:5500 → trang login
+2. Login `user` / `123456`
+3. Click **"Sản phẩm"** → thấy 5 sản phẩm mẫu
+4. Click **"Thêm vào giỏ"** → chọn số lượng
+5. Click **"Đặt hàng"** → order tạo xong
+6. Đợi ~3s → status chuyển `PAID` (qua Kafka)
+7. Logout, login `admin` / `123456`
+8. Click **"Admin"** → xem:
+   - Doanh thu tổng (`/api/admin/revenue`)
+   - Notification logs (`/api/notifications/logs`)
+9. Test saga: gọi API `PUT /api/shop/orders/{id}/status?status=SHIPPED` → kiểm tra kho trừ
+
+---
+
+## ❓ Troubleshooting
+
+### MySQL không kết nối
+- Kiểm tra XAMPP đã Start MySQL (port 3306)
+- Kiểm tra user `root` không password (mặc định XAMPP)
+- Xem `logs/user-error.log` để biết chi tiết
+
+### Service không lên
+- Kiểm tra Eureka trước: http://localhost:8761 — phải thấy tất cả service `UP`
+- Đợi 30-60s cho lần đầu (Kafka + Eureka + Redis embedded cần thời gian)
+
+### Login fail
+- Username/password mặc định: `admin`/`123456` hoặc `user`/`123456`
+- Nếu quên, xem MySQL: `SELECT user_name, active FROM users;`
+
+### Port 8761/8900/5500 bị chiếm
+- Tắt process cũ: `Get-Process -Name java | Stop-Process -Force`
+- Hoặc đổi port trong `application.properties` từng service
+
+### JWT token bị reject qua Gateway
+- Token hết hạn (24h) → login lại
+- Hoặc xung đột secret → đảm bảo `JWT_SECRET` trong `.env` giống nhau ở mọi service
+
+### Web client không load
+- Chạy `python -m http.server 5500` từ `web-client/`
+- Mở `http://localhost:5500` (KHÔNG mở `file://`)
+
+---
+
+## 📚 Tài liệu tham khảo
+
+- [Spring Cloud Gateway](https://spring.io/projects/spring-cloud-gateway)
+- [Spring Cloud Netflix Eureka](https://spring.io/projects/spring-cloud-netflix)
+- [Spring for Apache Kafka](https://spring.io/projects/spring-kafka)
+- [Saga Pattern (microservices.io)](https://microservices.io/patterns/data/saga.html)
+- [OpenFeign](https://spring.io/projects/spring-cloud-openfeign)
+
+---
+
+## 👤 Tác giả
+
+- **Họ tên:** Nguyễn Vũ Hiệp
+- **MSSV:** 2123110161
+- **Môn học:** Lập trình Microservices
+- **Niên khóa:** 2026
+
+---
+
+> 📌 **Tip:** Nếu bạn chỉ muốn xem demo mà không cần sửa code, chỉ cần:
+> 1. Bật MySQL (XAMPP)
+> 2. `.\start_with_env.ps1`
+> 3. Mở http://localhost:5500
+> 4. Login `user` / `123456`

@@ -39,6 +39,21 @@ Write-Host "Dang khoi chay Order Service (Port 8813)..." -ForegroundColor Yellow
 $OrderJar = "D:\Bai Tap\java-project\e-commerce-microservices-master\order-service\target\order-service-0.0.1-SNAPSHOT.jar"
 Start-Process cmd.exe -ArgumentList "/k title Order Service (8813) && `"$JavaPath`" -jar `"$OrderJar`""
 
+# 7. Start payment-service
+Write-Host "Dang khoi chay Payment Service (Port 8815)..." -ForegroundColor Yellow
+$PaymentJar = "D:\Bai Tap\java-project\e-commerce-microservices-master\payment-service\target\payment-service-0.0.1-SNAPSHOT.jar"
+Start-Process cmd.exe -ArgumentList "/k title Payment Service (8815) && `"$JavaPath`" -jar `"$PaymentJar`""
+
+# 8. Start inventory-service
+Write-Host "Dang khoi chay Inventory Service (Port 8816)..." -ForegroundColor Yellow
+$InventoryJar = "D:\Bai Tap\java-project\e-commerce-microservices-master\inventory-service\target\inventory-service-0.0.1-SNAPSHOT.jar"
+Start-Process cmd.exe -ArgumentList "/k title Inventory Service (8816) && `"$JavaPath`" -jar `"$InventoryJar`""
+
+# 9. Start notification-service
+Write-Host "Dang khoi chay Notification Service (Port 8817)..." -ForegroundColor Yellow
+$NotifJar = "D:\Bai Tap\java-project\e-commerce-microservices-master\notification-service\target\notification-service-0.0.1-SNAPSHOT.jar"
+Start-Process cmd.exe -ArgumentList "/k title Notification Service (8817) && `"$JavaPath`" -jar `"$NotifJar`""
+
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host "Tat ca cac service da duoc mo trong cac cua so Command Prompt rieng." -ForegroundColor Green
 Write-Host "1. Eureka Dashboard: http://localhost:8761/" -ForegroundColor Cyan

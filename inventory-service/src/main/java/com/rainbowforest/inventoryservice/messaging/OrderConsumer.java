@@ -3,6 +3,7 @@ package com.rainbowforest.inventoryservice.messaging;
 import com.rainbowforest.inventoryservice.entity.Inventory;
 import com.rainbowforest.inventoryservice.event.OrderCreatedEvent;
 import com.rainbowforest.inventoryservice.event.OrderItemInfo;
+import com.rainbowforest.inventoryservice.event.OrderShippedEvent;
 import com.rainbowforest.inventoryservice.repository.InventoryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,34 +23,50 @@ public class OrderConsumer {
 
     @KafkaListener(topics = "order-created", groupId = "inventory-group")
     public void consumeOrderCreated(OrderCreatedEvent event) {
-        logger.info("Inventory Service nhận được sự kiện order-created: {}", event);
+        logger.info("[Saga] Inventory Service nhận sự kiện order-created #{}: chuẩn bị tồn kho (RESERVATION)", event.getOrderId());
 
         if (event.getItems() != null) {
             for (OrderItemInfo item : event.getItems()) {
                 Long productId = item.getProductId();
-                int orderQty = item.getQuantity();
-
                 Optional<Inventory> optInv = inventoryRepository.findByProductId(productId);
                 Inventory inventory;
                 if (optInv.isPresent()) {
                     inventory = optInv.get();
                 } else {
-                    // Tự động khởi tạo tồn kho mẫu ban đầu nếu sản phẩm chưa có trong DB tồn kho
                     inventory = new Inventory();
                     inventory.setProductId(productId);
                     inventory.setProductName(item.getProductName() != null ? item.getProductName() : "Sản phẩm " + productId);
-                    inventory.setQuantity(100); // Tồn kho ban đầu là 100
+                    inventory.setQuantity(100);
                     inventory = inventoryRepository.save(inventory);
-                    logger.info("Đã khởi tạo tồn kho mẫu ban đầu cho sản phẩm ID {}: 100 cái", productId);
+                    logger.info("Khởi tạo tồn kho mẫu cho sản phẩm ID {}: 100", productId);
                 }
+                logger.info("[Saga] Đơn hàng #{} - Sản phẩm {}: tồn kho hiện tại = {} (giữ chỗ, chưa trừ)",
+                    event.getOrderId(), productId, inventory.getQuantity());
+            }
+        }
+    }
 
-                // Thực hiện trừ kho
-                int newQty = Math.max(0, inventory.getQuantity() - orderQty);
-                inventory.setQuantity(newQty);
-                inventoryRepository.save(inventory);
+    @KafkaListener(topics = "order-shipped", groupId = "inventory-group")
+    public void consumeOrderShipped(OrderShippedEvent event) {
+        logger.info("[Saga] Inventory Service nhận sự kiện order-shipped #{}: TRỪ KHO chính thức", event.getOrderId());
 
-                logger.info("Đã cập nhật tồn kho cho sản phẩm '{}' (ID {}): {} -> {} (Trừ {} cái)", 
-                        inventory.getProductName(), productId, inventory.getQuantity() + orderQty, newQty, orderQty);
+        if (event.getItems() != null) {
+            for (OrderItemInfo item : event.getItems()) {
+                Long productId = item.getProductId();
+                int orderQty = item.getQuantity();
+                Optional<Inventory> optInv = inventoryRepository.findByProductId(productId);
+                if (optInv.isPresent()) {
+                    Inventory inventory = optInv.get();
+                    int oldQty = inventory.getQuantity();
+                    int newQty = Math.max(0, oldQty - orderQty);
+                    inventory.setQuantity(newQty);
+                    inventoryRepository.save(inventory);
+                    logger.info("[Saga] Đơn hàng #{} ĐÃ GIAO: trừ kho sản phẩm {}: {} -> {} (trừ {})",
+                        event.getOrderId(), productId, oldQty, newQty, orderQty);
+                } else {
+                    logger.warn("[Saga] Đơn hàng #{} ĐÃ GIAO nhưng sản phẩm {} chưa có trong kho - bỏ qua",
+                        event.getOrderId(), productId);
+                }
             }
         }
     }

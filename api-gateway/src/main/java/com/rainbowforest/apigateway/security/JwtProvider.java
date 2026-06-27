@@ -10,8 +10,16 @@ import java.util.List;
 @Component
 public class JwtProvider {
 
-    private static final String SECRET_KEY = "mySecretKeyForEcommerceMicroservicesApplicationLongEnough";
+    private static final String SECRET_KEY = resolveSecret();
     private static final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+
+    private static String resolveSecret() {
+        String env = System.getenv("JWT_SECRET");
+        if (env != null && !env.isBlank() && env.length() >= 32) {
+            return env;
+        }
+        return "mySecretKeyForEcommerceMicroservicesApplicationLongEnough";
+    }
 
     public boolean validateToken(String token) {
         try {

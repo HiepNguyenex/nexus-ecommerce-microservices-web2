@@ -42,6 +42,22 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- Notification log storage: dùng MySQL (Lab 2 - Câu 2)
+             Lý do: môi trường demo không có MongoDB server, embedded MongoDB
+             download binary quá chậm từ fastdl.mongodb.org.
+             MySQL đã có sẵn, schema được Hibernate tạo tự động.
+             Tên class giữ nguyên NotificationLog để giữ cấu trúc code
+             gần với MongoDB document, dễ chuyển đổi sau. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>

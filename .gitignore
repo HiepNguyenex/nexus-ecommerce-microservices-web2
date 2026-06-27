@@ -26,6 +26,20 @@ bin/
 tmp/
 temp/
 
-# Local-only files (not pushed to GitHub)
-SUMMARY_BAI_TAP_4.md
+# Environment files with real secrets
+.env
+*.env.local
+
+# AI / IDE config files (local-only, not related to project)
+opencode.json
+.omo/
+
+# Lab report files
+*.docx
+
+# Auto-generated binary files (compiled classes, etc.)
+*.class
+*.ctxt
+
+# Local-only docker files
 docker-compose.yml

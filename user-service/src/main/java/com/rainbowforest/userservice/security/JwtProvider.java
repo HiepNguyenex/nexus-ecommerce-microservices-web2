@@ -11,9 +11,17 @@ import java.util.List;
 @Component
 public class JwtProvider {
 
-    private static final String SECRET_KEY = "mySecretKeyForEcommerceMicroservicesApplicationLongEnough";
+    private static final String SECRET_KEY = resolveSecret();
     private static final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
     private static final long EXPIRATION_TIME = 86400000; // 1 ngày
+
+    private static String resolveSecret() {
+        String env = System.getenv("JWT_SECRET");
+        if (env != null && !env.isBlank() && env.length() >= 32) {
+            return env;
+        }
+        return "mySecretKeyForEcommerceMicroservicesApplicationLongEnough";
+    }
 
     public String generateToken(String username, List<String> roles) {
         Claims claims = Jwts.claims().setSubject(username);

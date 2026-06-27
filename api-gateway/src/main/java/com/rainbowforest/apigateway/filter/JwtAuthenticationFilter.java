@@ -39,6 +39,10 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
         logger.info("Gateway nhận request: {} [{}]", path, method);
 
+        if (method.equalsIgnoreCase("OPTIONS")) {
+            return chain.filter(exchange);
+        }
+
         boolean isPublic = PUBLIC_PATHS.contains(path) || 
                 (method.equalsIgnoreCase("GET") && (path.startsWith("/api/catalog") || path.startsWith("/api/review")));
 
