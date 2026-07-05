@@ -45,11 +45,11 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
           <Link to="/" className="flex items-center gap-3 group">
-            <span className="text-3xl animate-float inline-block">🌈</span>
+            <span className="text-3xl animate-float inline-block">✨</span>
             <div>
-              <span className="text-xl font-bold text-[#1a1a1a] tracking-tight">Rainbow Forest</span>
+              <span className="text-xl font-bold text-[#1a1a1a] tracking-tight">Aroma Forest</span>
               <span className="hidden sm:block text-[10px] uppercase tracking-[0.2em] text-[#b8a690] font-medium -mt-0.5">
-                E-Commerce Platform
+                Artisan Perfume House
               </span>
             </div>
           </Link>
