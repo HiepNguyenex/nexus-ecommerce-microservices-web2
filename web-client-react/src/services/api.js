@@ -108,11 +108,15 @@ export const authAPI = {
   logout: (accessToken) =>
     api.post('/accounts/logout', { accessToken }),
   getUsers: () => api.get('/accounts/users'),
+  toggleUserStatus: (id, active) =>
+    api.put(`/accounts/users/${id}/status?active=${active}`),
 };
 
 // Product APIs
 export const productAPI = {
   getAll: () => api.get('/catalog/products'),
+  addProduct: (product) => api.post('/catalog/admin/products', product),
+  deleteProduct: (id) => api.delete(`/catalog/admin/products/${id}`),
 };
 
 // Cart APIs
