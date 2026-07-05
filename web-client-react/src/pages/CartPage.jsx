@@ -4,16 +4,16 @@ import { cartAPI, orderAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import Navbar from '../components/Navbar';
-import { FiTrash2, FiMinus, FiPlus, FiShoppingBag, FiArrowLeft, FiCreditCard } from 'react-icons/fi';
+import { FiTrash2, FiMinus, FiPlus, FiArrowLeft } from 'react-icons/fi';
 
 const BACKUP_IMAGES = {
-  1: "https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=200&auto=format&fit=crop&q=60",
-  2: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=200&auto=format&fit=crop&q=60",
-  3: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=200&auto=format&fit=crop&q=60",
-  4: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=200&auto=format&fit=crop&q=60",
-  5: "https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=200&auto=format&fit=crop&q=60"
+  1: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&auto=format&fit=crop&q=60",
+  2: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=200&auto=format&fit=crop&q=60",
+  3: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=200&auto=format&fit=crop&q=60",
+  4: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=200&auto=format&fit=crop&q=60",
+  5: "https://images.unsplash.com/photo-1588405748373-122b2321bc31?w=200&auto=format&fit=crop&q=60"
 };
-const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=60";
+const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&auto=format&fit=crop&q=60";
 
 export default function CartPage() {
   const [cartItems, setCartItems] = useState([]);
@@ -32,7 +32,7 @@ export default function CartPage() {
       const data = await cartAPI.getCart();
       setCartItems(data?.items || data || []);
     } catch {
-      showToast('Không thể tải giỏ hàng.', 'error');
+      showToast('Không thể tải thông tin giỏ hàng.', 'error');
     } finally {
       setLoading(false);
     }
@@ -48,7 +48,7 @@ export default function CartPage() {
         )
       );
     } catch {
-      showToast('Không thể cập nhật số lượng.', 'error');
+      showToast('Không thể cập nhật số lượng mùi hương.', 'error');
     }
   };
 
@@ -70,10 +70,10 @@ export default function CartPage() {
     setOrdering(true);
     try {
       await orderAPI.createOrder(user.id);
-      showToast('Đặt hàng thành công! 🎉');
+      showToast('Đặt túi hương thành công! 🎉');
       setCartItems([]);
     } catch {
-      showToast('Không thể đặt hàng. Vui lòng thử lại.', 'error');
+      showToast('Không thể tiến hành đặt hàng. Vui lòng thử lại.', 'error');
     } finally {
       setOrdering(false);
     }
@@ -85,12 +85,15 @@ export default function CartPage() {
     return (
       <div className="min-h-screen bg-[#fffaf6] bg-grid">
         <Navbar />
-        <div className="flex flex-col items-center justify-center pt-32 animate-fade-in">
-          <div className="text-6xl mb-4">🔒</div>
-          <h2 className="text-2xl font-bold text-[#2d2a26] mb-2">Vui lòng đăng nhập</h2>
-          <p className="text-[#b8a690] mb-4">Đăng nhập để xem giỏ hàng của bạn</p>
-          <Link to="/login" className="px-6 py-3 rounded-2xl bg-gradient-to-r from-[#dbccb8] to-[#c9b8a0] text-[#1a1a1a] font-semibold hover:shadow-xl hover:shadow-[#dbccb8]/30 transition-all btn-shine">
-            Đăng Nhập
+        <div className="flex flex-col items-center justify-center pt-32">
+          <div className="text-5xl mb-4">🔒</div>
+          <h2 className="text-xl font-light text-[#2d2a26] mb-2">Quyền truy cập được bảo mật</h2>
+          <p className="text-xs text-[#8a8480] uppercase tracking-wider font-mono mb-6">Đăng nhập để xem túi hương cá nhân</p>
+          <Link 
+            to="/login" 
+            className="px-6 py-3 bg-[#1a1a1a] text-[#fffaf6] hover:bg-[#2d2a26] text-xs font-mono uppercase tracking-widest transition-all"
+          >
+            ĐĂNG NHẬP NGAY
           </Link>
         </div>
       </div>
@@ -98,117 +101,127 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#fffaf6] bg-grid">
+    <div className="min-h-screen bg-[#fffaf6] bg-grid pb-20">
       <Navbar />
 
-      <div className="max-w-6xl mx-auto px-4 pt-24 pb-20">
-        <div className="flex items-center justify-between mb-8 animate-fade-in">
-          <h1 className="text-3xl font-bold text-[#2d2a26] flex items-center gap-3">
-            <FiShoppingBag className="text-[#c9b8a0]" /> Giỏ Hàng
-          </h1>
-          <Link to="/" className="text-sm text-[#b8a690] hover:text-[#2d2a26] flex items-center gap-2 transition-colors">
-            <FiArrowLeft /> Tiếp tục mua sắm
+      <div className="max-w-6xl mx-auto px-4 pt-24">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-12 border-b border-[#dbccb8]/20 pb-6">
+          <div>
+            <span className="text-[10px] font-mono uppercase tracking-[0.3em] text-[#b8a690] block mb-1">Túi mua sắm của bạn</span>
+            <h1 className="text-3xl font-light text-[#2d2a26]">Giỏ Hàng Mùi Hương</h1>
+          </div>
+          <Link to="/" className="text-xs uppercase font-mono tracking-wider text-[#b8a690] hover:text-[#2d2a26] flex items-center gap-2 transition-all">
+            <FiArrowLeft /> TIẾP TỤC CHỌN MÙI HƯƠNG
           </Link>
         </div>
 
         {loading ? (
-          <div className="space-y-4 animate-fade-in">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="animate-shimmer h-28 rounded-2xl" />
+          <div className="space-y-4 animate-pulse">
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="h-24 bg-slate-200/50 w-full rounded" />
             ))}
           </div>
         ) : cartItems.length === 0 ? (
-          <div className="text-center py-20 bg-white/80 backdrop-blur-sm rounded-2xl border border-[#dbccb8]/20 animate-fade-in">
-            <div className="text-6xl mb-4">🛒</div>
-            <h3 className="text-xl font-semibold text-[#2d2a26] mb-2">Giỏ hàng trống</h3>
-            <p className="text-[#b8a690] mb-4">Hãy thêm sản phẩm vào giỏ hàng nhé!</p>
-            <Link to="/" className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-[#dbccb8] to-[#c9b8a0] text-[#1a1a1a] font-semibold hover:shadow-xl hover:shadow-[#dbccb8]/30 transition-all btn-shine">
-              Mua Sắm Ngay
+          <div className="text-center py-20 bg-white/30 border border-[#dbccb8]/20">
+            <div className="text-5xl mb-4">🛒</div>
+            <h3 className="text-lg font-light text-[#2d2a26] mb-1">Túi hương trống</h3>
+            <p className="text-xs text-[#b8a690] font-mono uppercase tracking-wider mb-6">Bạn chưa chọn chai nước hoa nào.</p>
+            <Link 
+              to="/" 
+              className="px-6 py-3 bg-[#1a1a1a] text-[#fffaf6] hover:bg-[#2d2a26] text-xs font-mono uppercase tracking-widest transition-all"
+            >
+              KHÁM PHÁ MÙI HƯƠNG
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Cart Items */}
-            <div className="lg:col-span-2 space-y-4 stagger-children">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
+            
+            {/* Left: Cart Items List (Flat borders) */}
+            <div className="lg:col-span-2 border-t border-[#dbccb8]/20">
               {cartItems.map((item, idx) => (
                 <div
                   key={item.id || idx}
-                  className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 flex items-center gap-4 border border-[#dbccb8]/20 shadow-sm card-hover"
+                  className="py-6 border-b border-[#dbccb8]/20 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-[#fffaf6]"
                 >
                   <img
                     src={BACKUP_IMAGES[item.productId] || DEFAULT_IMAGE}
                     alt={item.productName}
-                    className="w-20 h-20 rounded-xl object-cover flex-shrink-0"
+                    className="w-16 h-16 object-cover border border-[#dbccb8]/20 grayscale hover:grayscale-0 transition-all duration-300 flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-[#2d2a26] truncate">
-                      {item.productName || 'Sản phẩm'}
+                    <h3 className="font-light text-[#2d2a26] text-base truncate">
+                      {item.productName || 'Sản phẩm nước hoa'}
                     </h3>
-                    <p className="text-sm text-gradient font-bold mt-1">
-                      ${(item.price || 0).toFixed(2)}
+                    <p className="text-xs font-mono text-[#b8a690] mt-0.5">
+                      Đơn giá: ${(item.price || 0).toFixed(2)}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  
+                  {/* Quantity Controls (Minimalist styling) */}
+                  <div className="flex items-center border border-[#dbccb8]/30">
                     <button
                       onClick={() => updateQuantity(item.id, (item.quantity || 1) - 1)}
-                      className="w-8 h-8 rounded-full bg-[#dbccb8]/20 flex items-center justify-center text-[#8a8480] hover:text-[#2d2a26] transition-all"
+                      className="w-8 h-8 flex items-center justify-center text-[#8a8480] hover:text-[#1a1a1a] hover:bg-[#dbccb8]/10 transition-all"
                     >
-                      <FiMinus className="text-xs" />
+                      <FiMinus className="text-[10px]" />
                     </button>
-                    <span className="w-8 text-center font-semibold text-[#2d2a26]">
+                    <span className="w-8 text-center text-xs font-mono text-[#2d2a26]">
                       {item.quantity || 1}
                     </span>
                     <button
                       onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
-                      className="w-8 h-8 rounded-full bg-[#dbccb8]/20 flex items-center justify-center text-[#8a8480] hover:text-[#2d2a26] transition-all"
+                      className="w-8 h-8 flex items-center justify-center text-[#8a8480] hover:text-[#1a1a1a] hover:bg-[#dbccb8]/10 transition-all"
                     >
-                      <FiPlus className="text-xs" />
+                      <FiPlus className="text-[10px]" />
                     </button>
                   </div>
-                  <div className="text-right min-w-[80px]">
-                    <p className="font-bold text-[#2d2a26]">
-                      ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
-                    </p>
+
+                  {/* Price info & Delete */}
+                  <div className="text-right min-w-[80px] font-semibold text-[#1a1a1a] text-sm">
+                    ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
                   </div>
+                  
                   <button
                     onClick={() => removeItem(item.id)}
-                    className="p-2 rounded-xl text-[#b8a690] hover:text-[#c99a8a] hover:bg-[#c99a8a]/10 transition-all"
+                    className="p-2 text-[#b8a690] hover:text-rose-500 transition-all ml-2"
+                    title="Xóa khỏi giỏ"
                   >
-                    <FiTrash2 />
+                    <FiTrash2 className="text-sm" />
                   </button>
                 </div>
               ))}
             </div>
 
-            {/* Order Summary */}
+            {/* Right: Order Summary Box (Minimalist Outline) */}
             <div className="lg:col-span-1">
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-[#dbccb8]/20 shadow-sm sticky top-24">
-                <h3 className="text-lg font-bold text-[#2d2a26] mb-4">Tổng Đơn Hàng</h3>
-                <div className="space-y-3 text-sm">
+              <div className="border border-[#dbccb8]/30 bg-[#fffaf6] p-6 sticky top-28">
+                <h3 className="text-xs font-mono uppercase tracking-[0.25em] text-[#b8a690] mb-6">Tóm tắt đơn hàng</h3>
+                <div className="space-y-4 text-xs font-light">
                   <div className="flex justify-between text-[#8a8480]">
                     <span>Tạm tính</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span className="font-mono">${total.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-[#8a8480]">
-                    <span>Phí vận chuyển</span>
-                    <span className="text-[#a8c5a0]">Miễn phí</span>
+                    <span>Vận chuyển toàn quốc</span>
+                    <span className="font-mono text-[#a8c5a0] uppercase tracking-wider">MIỄN PHÍ</span>
                   </div>
-                  <div className="border-t border-[#dbccb8]/20 pt-3 flex justify-between text-lg font-bold">
+                  
+                  <div className="border-t border-[#dbccb8]/20 pt-4 flex justify-between text-base font-normal">
                     <span className="text-[#2d2a26]">Tổng cộng</span>
-                    <span className="text-gradient">${total.toFixed(2)}</span>
+                    <span className="font-mono text-lg font-semibold text-[#1a1a1a]">${total.toFixed(2)}</span>
                   </div>
                 </div>
+                
                 <button
                   onClick={placeOrder}
                   disabled={ordering || cartItems.length === 0}
-                  className="w-full mt-6 py-3.5 rounded-2xl bg-gradient-to-r from-[#dbccb8] to-[#c9b8a0] text-[#1a1a1a] font-semibold flex items-center justify-center gap-2 hover:shadow-xl hover:shadow-[#dbccb8]/30 disabled:opacity-50 transition-all duration-200 btn-shine"
+                  className="w-full mt-8 py-4 bg-[#1a1a1a] text-[#fffaf6] hover:bg-[#2d2a26] transition-all text-xs font-mono uppercase tracking-[0.25em] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center"
                 >
                   {ordering ? (
-                    <div className="w-5 h-5 border-2 border-[#1a1a1a]/20 border-t-[#1a1a1a] rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-[#fffaf6]/20 border-t-[#fffaf6] rounded-full animate-spin" />
                   ) : (
-                    <>
-                      <FiCreditCard /> Đặt Hàng
-                    </>
+                    'TIẾN HÀNH ĐẶT HÀNG'
                   )}
                 </button>
               </div>
