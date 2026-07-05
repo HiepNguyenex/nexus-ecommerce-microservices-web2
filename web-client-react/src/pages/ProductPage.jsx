@@ -119,10 +119,10 @@ export default function ProductPage() {
         </Link>
 
         {/* Product Detail (Editorial Split Layout) */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 pb-16 border-b border-[#dbccb8]/20">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-12 pb-16 border-b border-[#dbccb8]/20 items-start">
           
           {/* Left: Sticky Image (6 Columns) */}
-          <div className="md:col-span-6 flex items-center justify-center bg-[#fffaf6] border border-[#dbccb8]/20 p-8">
+          <div className="md:col-span-6 md:sticky md:top-28 flex items-center justify-center bg-[#fffaf6] border border-[#dbccb8]/20 p-8">
             <img
               src={imgUrl}
               alt={product.productName}
