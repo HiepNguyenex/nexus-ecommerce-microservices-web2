@@ -79,7 +79,7 @@ export default function CartPage() {
     }
   };
 
-  const total = cartItems.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
+  const total = cartItems.reduce((sum, item) => sum + (item.product?.price || 0) * (item.quantity || 1), 0);
 
   if (!user) {
     return (
@@ -145,16 +145,16 @@ export default function CartPage() {
                   className="py-6 border-b border-[#dbccb8]/20 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-[#fffaf6]"
                 >
                   <img
-                    src={BACKUP_IMAGES[item.productId] || DEFAULT_IMAGE}
-                    alt={item.productName}
+                    src={BACKUP_IMAGES[item.product?.id] || DEFAULT_IMAGE}
+                    alt={item.product?.productName}
                     className="w-16 h-16 object-cover border border-[#dbccb8]/20 grayscale hover:grayscale-0 transition-all duration-300 flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
                     <h3 className="font-light text-[#2d2a26] text-base truncate">
-                      {item.productName || 'Sản phẩm nước hoa'}
+                      {item.product?.productName || 'Sản phẩm nước hoa'}
                     </h3>
                     <p className="text-xs font-mono text-[#b8a690] mt-0.5">
-                      Đơn giá: ${(item.price || 0).toFixed(2)}
+                      Đơn giá: ${(item.product?.price || 0).toFixed(2)}
                     </p>
                   </div>
                   
@@ -179,7 +179,7 @@ export default function CartPage() {
 
                   {/* Price info & Delete */}
                   <div className="text-right min-w-[80px] font-semibold text-[#1a1a1a] text-sm">
-                    ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                    ${((item.product?.price || 0) * (item.quantity || 1)).toFixed(2)}
                   </div>
                   
                   <button
