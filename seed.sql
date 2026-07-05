@@ -40,7 +40,8 @@ INSERT INTO users_details (id, country, email, first_name, last_name, locality, 
 -- Insert users
 INSERT INTO users (id, active, user_name, user_password, role_id, user_details_id) VALUES
 (1, 1, 'johndoe', '$2b$12$kzWpygiCGSZ1y1Eq.AUyH.b/qi7OCyVBt.GKmUZwNobM5hxTKw9e2', 1, 1),
-(2, 1, 'janesmith', '$2b$12$qsyEMwh9qqooIw/31L1hWe8Gl4svoyVmIgDsTAW4G5Sg4qjGdTpiy', 2, 2);
+(2, 1, 'janesmith', '$2b$12$qsyEMwh9qqooIw/31L1hWe8Gl4svoyVmIgDsTAW4G5Sg4qjGdTpiy', 1, 2),
+(3, 1, 'admin', '$2b$12$h/1HXNaUwT9GCfiZayVIVOodLDS0QYmOJGVcw9VIYGIw3wH9f1gX2', 2, NULL);
 
 -- ==========================================
 -- 3. Database: product_recommendations

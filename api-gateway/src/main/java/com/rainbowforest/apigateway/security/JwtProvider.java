@@ -38,4 +38,13 @@ public class JwtProvider {
     public List<String> getRoles(String token) {
         return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().get("roles", List.class);
     }
+
+    public String getUserId(String token) {
+        try {
+            Object userId = Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().get("userId");
+            return userId != null ? userId.toString() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }

@@ -11,5 +11,11 @@ public interface OrderService {
     public List<Order> getAllOrders();
     public Order getOrderById(Long id);
     public RevenueReport getRevenueReport(LocalDate from, LocalDate to);
+
+    // Dành cho USER: lấy danh sách đơn hàng của chính họ
+    public List<Order> getOrdersByUserName(String userName);
+
+    // Kiểm tra quyền sở hữu: user có phải chủ của order này không?
+    public boolean isOrderOwner(Long orderId, String userName);
 }
 

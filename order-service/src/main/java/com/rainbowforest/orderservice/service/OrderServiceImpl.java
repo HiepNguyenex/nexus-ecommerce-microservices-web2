@@ -39,6 +39,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public List<Order> getOrdersByUserName(String userName) {
+        return orderRepository.findByUserUserName(userName);
+    }
+
+    @Override
+    public boolean isOrderOwner(Long orderId, String userName) {
+        return orderRepository.findByIdAndUserUserName(orderId, userName).isPresent();
+    }
+
+    @Override
     public RevenueReport getRevenueReport(LocalDate from, LocalDate to) {
         BigDecimal totalRevenue = orderRepository.sumRevenueByStatusesAndDateRange(REVENUE_STATUSES, from, to);
         Long totalCount = orderRepository.countByStatusesAndDateRange(REVENUE_STATUSES, from, to);

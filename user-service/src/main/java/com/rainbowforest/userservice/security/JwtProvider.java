@@ -23,9 +23,10 @@ public class JwtProvider {
         return "mySecretKeyForEcommerceMicroservicesApplicationLongEnough";
     }
 
-    public String generateToken(String username, List<String> roles) {
+    public String generateToken(String username, Long userId, List<String> roles) {
         Claims claims = Jwts.claims().setSubject(username);
         claims.put("roles", roles);
+        if (userId != null) claims.put("userId", userId);
 
         Date now = new Date();
         Date validity = new Date(now.getTime() + EXPIRATION_TIME);
@@ -54,5 +55,19 @@ public class JwtProvider {
     @SuppressWarnings("unchecked")
     public List<String> getRoles(String token) {
         return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody().get("roles", List.class);
+    }
+
+    public long getExpirationMs(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .getExpiration()
+                    .getTime();
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }

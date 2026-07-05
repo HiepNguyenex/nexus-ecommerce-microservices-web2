@@ -13,22 +13,25 @@ Hệ thống e-commerce gồm **9 microservices** giao tiếp đồng bộ (REST
 
 ---
 
-### 🎯 Cách 1: Chạy nhanh (đã build sẵn)
+### 🎯 Cách 1: Chạy nhanh bằng một lệnh duy nhất (đã build sẵn)
 
-Dùng khi bạn **đã build** project rồi, chỉ cần chạy lại:
+Dùng khi bạn **đã build** các services rồi, chỉ cần chạy một lệnh duy nhất để khởi động toàn bộ DB, Backend Microservices và React Web Client:
 
 ```powershell
-# Bước 1: Bật MySQL (XAMPP Control Panel → Start MySQL)
-# Bước 2: Khởi động tất cả services
-.\start_with_env.ps1
-
-# Bước 3: Mở terminal khác → chạy web client
-cd web-client
-python -m http.server 5500
+# Bật PowerShell (chạy với quyền của bạn) và thực thi:
+.\start_fast.ps1
 ```
 
+> **Lưu ý:** Script này tự động:
+> 1. Kiểm tra và kích hoạt MySQL (XAMPP) nếu chưa chạy.
+> 2. Đọc và nạp các cấu hình từ `.env`.
+> 3. Tự động tìm và chạy đúng các file jar khả thi (kể cả `-exec.jar` của API Gateway).
+> 4. Khởi động 9 microservices trong nền với log ghi vào thư mục `logs/`.
+> 5. Khởi chạy máy chủ phát triển Vite của React Web Client.
+
 ✅ Mở trình duyệt: **http://localhost:5500**  
-✅ Đăng nhập: `user` / `123456` hoặc `admin` / `123456`
+✅ Đăng nhập: `user` / `123456` hoặc `admin` / `123456`  
+✅ Dừng toàn bộ hệ thống: `.\stop_all.ps1`
 
 ---
 

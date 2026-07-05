@@ -21,4 +21,12 @@ if ($pyProcs) {
     Write-Host "  No python web server running" -ForegroundColor Cyan
 }
 
+$nodeProcs = Get-Process -Name node -ErrorAction SilentlyContinue
+if ($nodeProcs) {
+    $nodeProcs | Stop-Process -Force
+    Write-Host "  Stopped $($nodeProcs.Count) node process(es)" -ForegroundColor Green
+} else {
+    Write-Host "  No node process running" -ForegroundColor Cyan
+}
+
 Write-Host "Done." -ForegroundColor Green

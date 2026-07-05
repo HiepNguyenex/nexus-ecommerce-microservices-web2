@@ -10,6 +10,7 @@ import com.rainbowforest.orderservice.domain.Order;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
@@ -17,6 +18,12 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByStatus(String status);
 
     List<Order> findByOrderedDateBetween(LocalDate from, LocalDate to);
+
+    // Tìm đơn hàng theo username của user (dùng để kiểm tra quyền sở hữu)
+    List<Order> findByUserUserName(String userName);
+
+    // Tìm đơn hàng theo ID và username cùng lúc (kiểm tra sở hữu nhanh)
+    Optional<Order> findByIdAndUserUserName(Long id, String userName);
 
     @Query("SELECT COALESCE(SUM(o.total), 0) FROM Order o WHERE o.status IN :statuses AND o.orderedDate BETWEEN :from AND :to")
     BigDecimal sumRevenueByStatusesAndDateRange(

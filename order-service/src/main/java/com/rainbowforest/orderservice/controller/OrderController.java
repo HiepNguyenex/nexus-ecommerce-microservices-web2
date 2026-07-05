@@ -95,16 +95,36 @@ public class OrderController {
     @GetMapping(value = "/admin/revenue")
     public ResponseEntity<com.rainbowforest.orderservice.dto.RevenueReport> getRevenueReport(
             @RequestParam(value = "from", required = false) String fromStr,
-            @RequestParam(value = "to", required = false) String toStr) {
+            @RequestParam(value = "to", required = false) String toStr,
+            @RequestHeader("X-User-Roles") String roles) {
+        // Chỉ ADMIN mới có thể xem doanh thu (Gateway đã chặn, kiểm tra thêm)
+        if (!roles.contains("ROLE_ADMIN")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         java.time.LocalDate to = (toStr != null && !toStr.isEmpty()) ? java.time.LocalDate.parse(toStr) : java.time.LocalDate.now();
         java.time.LocalDate from = (fromStr != null && !fromStr.isEmpty()) ? java.time.LocalDate.parse(fromStr) : to.minusMonths(1);
         com.rainbowforest.orderservice.dto.RevenueReport report = orderService.getRevenueReport(from, to);
         return new ResponseEntity<>(report, headerGenerator.getHeadersForSuccessGetMethod(), HttpStatus.OK);
     }
 
+    /**
+     * Lấy danh sách đơn hàng:
+     * - ADMIN: tất cả đơn hàng
+     * - USER: chỉ đơn hàng của chính họ
+     */
     @GetMapping(value = "/orders")
-    public ResponseEntity<List<Order>> getAllOrders() {
-        List<Order> orders = orderService.getAllOrders();
+    public ResponseEntity<List<Order>> getAllOrders(
+            @RequestHeader("X-User-Name") String userName,
+            @RequestHeader("X-User-Roles") String roles) {
+        List<Order> orders;
+        if (roles.contains("ROLE_ADMIN")) {
+            // ADMIN xem tất cả
+            orders = orderService.getAllOrders();
+        } else {
+            // USER chỉ xem đơn của mình
+            orders = orderService.getOrdersByUserName(userName);
+        }
+
         if (!orders.isEmpty()) {
             return new ResponseEntity<List<Order>>(
                     orders,
@@ -116,14 +136,44 @@ public class OrderController {
                 HttpStatus.NOT_FOUND);
     }
 
-    @GetMapping(value = "/orders/{id}")
-    public ResponseEntity<Order> getOrderById(@PathVariable("id") Long id) {
-        Order order = orderService.getOrderById(id);
-        if (order != null) {
-            return new ResponseEntity<Order>(
-                    order,
+    @GetMapping(value = "/orders/my")
+    public ResponseEntity<List<Order>> getMyOrders(@RequestHeader("X-User-Name") String userName) {
+        List<Order> orders = orderService.getOrdersByUserName(userName);
+        if (!orders.isEmpty()) {
+            return new ResponseEntity<List<Order>>(
+                    orders,
                     headerGenerator.getHeadersForSuccessGetMethod(),
                     HttpStatus.OK);
+        }
+        return new ResponseEntity<List<Order>>(
+                headerGenerator.getHeadersForError(),
+                HttpStatus.NOT_FOUND);
+    }
+
+    /**
+     * Lấy chi tiết đơn hàng:
+     * - ADMIN: xem bất kỳ
+     * - USER: chỉ xem đơn của mình
+     */
+    @GetMapping(value = "/orders/{id}")
+    public ResponseEntity<Order> getOrderById(
+            @PathVariable("id") Long id,
+            @RequestHeader("X-User-Name") String userName,
+            @RequestHeader("X-User-Roles") String roles) {
+        Order order = orderService.getOrderById(id);
+        if (order != null) {
+            // Kiểm tra quyền sở hữu: ADMIN được xem tất cả, USER chỉ xem đơn của mình
+            boolean isAdmin = roles.contains("ROLE_ADMIN");
+            boolean isOwner = order.getUser() != null && userName.equals(order.getUser().getUserName());
+            if (isAdmin || isOwner) {
+                return new ResponseEntity<Order>(
+                        order,
+                        headerGenerator.getHeadersForSuccessGetMethod(),
+                        HttpStatus.OK);
+            } else {
+                // User không phải chủ đơn hàng
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
         }
         return new ResponseEntity<Order>(
                 headerGenerator.getHeadersForError(),
@@ -133,7 +183,13 @@ public class OrderController {
     @PutMapping(value = "/orders/{id}/status")
     public ResponseEntity<Order> updateOrderStatus(
             @PathVariable("id") Long id,
-            @RequestParam("status") String status) {
+            @RequestParam("status") String status,
+            @RequestHeader("X-User-Name") String userName,
+            @RequestHeader("X-User-Roles") String roles) {
+        // Cập nhật trạng thái yêu cầu ADMIN
+        if (!roles.contains("ROLE_ADMIN")) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         Order order = orderService.getOrderById(id);
         if (order != null) {
             String previousStatus = order.getStatus();
@@ -215,4 +271,3 @@ public class OrderController {
         return order;
     }
 }
-
