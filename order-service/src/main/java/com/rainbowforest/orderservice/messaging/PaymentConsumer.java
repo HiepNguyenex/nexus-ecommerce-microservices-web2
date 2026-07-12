@@ -19,7 +19,7 @@ public class PaymentConsumer {
     @Autowired
     private OrderRepository orderRepository;
 
-    @KafkaListener(topics = "payment-completed", groupId = "order-group")
+    @KafkaListener(topics = "payment-completed", groupId = "${spring.kafka.consumer.group-id:order-group-v2}")
     public void consumePaymentCompleted(PaymentCompletedEvent event) {
         logger.info("Order Service nhận được sự kiện payment-completed từ Kafka: {}", event);
 

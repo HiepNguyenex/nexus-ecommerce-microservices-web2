@@ -23,7 +23,7 @@ public class OrderConsumer {
     @Autowired
     private PaymentProducer paymentProducer;
 
-    @KafkaListener(topics = "order-created", groupId = "payment-group")
+    @KafkaListener(topics = "order-created", groupId = "${spring.kafka.consumer.group-id:payment-group-v2}")
     public void consumeOrderCreated(OrderCreatedEvent event) {
         logger.info("Nhận được sự kiện order-created từ Kafka: {}", event);
 

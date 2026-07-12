@@ -27,7 +27,27 @@ export default function LoginPage() {
         showToast('Đăng nhập thành công! 🎉');
         navigate('/');
       } else {
-        await authAPI.register({ username: form.username, password: form.password, email: form.email, fullName: form.fullName, phone: form.phone, address: form.address });
+        const nameParts = (form.fullName || '').trim().split(/\s+/);
+        const firstName = nameParts.slice(0, -1).join(' ') || nameParts[0] || 'User';
+        const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '.';
+        
+        const payload = {
+          userName: form.username,
+          userPassword: form.password,
+          active: 1,
+          userDetails: {
+            firstName: firstName,
+            lastName: lastName,
+            email: form.email,
+            phoneNumber: form.phone || '',
+            street: form.address || '',
+            streetNumber: '1',
+            zipCode: '10000',
+            locality: 'Hanoi',
+            country: 'Vietnam'
+          }
+        };
+        await authAPI.register(payload);
         showToast('Đăng ký thành công! Vui lòng đăng nhập.', 'success');
         setIsLogin(true);
       }

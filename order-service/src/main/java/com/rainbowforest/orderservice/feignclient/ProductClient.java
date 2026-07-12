@@ -6,10 +6,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import com.rainbowforest.orderservice.domain.Product;
 
-@FeignClient(name = "product-catalog-service", url = "http://localhost:8810/")
+/**
+ * FeignClient gọi product-catalog-service qua Eureka Service Discovery.
+ * Không hard-code URL — Eureka tự resolve địa chỉ theo service name "product-catalog-service".
+ * Nếu có nhiều instance, Ribbon/LoadBalancer sẽ tự cân bằng tải.
+ */
+@FeignClient(name = "product-catalog-service")
 public interface ProductClient {
 
     @GetMapping(value = "/products/{id}")
-    public Product getProductById(@PathVariable(value = "id") Long productId);
+    Product getProductById(@PathVariable(value = "id") Long productId);
 
 }

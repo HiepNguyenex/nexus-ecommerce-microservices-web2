@@ -15,6 +15,7 @@ import {
   FiXCircle, 
   FiPlus, 
   FiTrash2, 
+  FiEdit2, 
   FiUserCheck, 
   FiUserX, 
   FiBox, 
@@ -40,8 +41,9 @@ export default function AdminPage() {
     name: '',
     price: '',
     description: '',
-    category: 'Electronics',
-    availability: 10
+    category: 'Unisex',
+    availability: 10,
+    imageUrl: ''
   });
 
   useEffect(() => {
@@ -100,15 +102,32 @@ export default function AdminPage() {
         discription: newProduct.description,
         category: newProduct.category,
         availability: parseInt(newProduct.availability),
+        imageUrl: newProduct.imageUrl,
       };
+      if (newProduct.id) {
+        payload.id = newProduct.id;
+      }
       await productAPI.addProduct(payload);
-      showToast('Thêm sản phẩm mới thành công!');
+      showToast(newProduct.id ? 'Cập nhật sản phẩm thành công!' : 'Thêm sản phẩm mới thành công!');
       setIsAddModalOpen(false);
-      setNewProduct({ name: '', price: '', description: '', category: 'Electronics', availability: 10 });
+      setNewProduct({ name: '', price: '', description: '', category: 'Unisex', availability: 10, imageUrl: '' });
       loadData();
     } catch (err) {
-      showToast('Không thể thêm sản phẩm mới.', 'error');
+      showToast(newProduct.id ? 'Không thể cập nhật sản phẩm.' : 'Không thể thêm sản phẩm mới.', 'error');
     }
+  };
+
+  const handleEditClick = (prod) => {
+    setNewProduct({
+      id: prod.id,
+      name: prod.productName,
+      price: prod.price,
+      description: prod.discription || '',
+      category: prod.category,
+      availability: prod.availability,
+      imageUrl: prod.imageUrl || ''
+    });
+    setIsAddModalOpen(true);
   };
 
   const handleDeleteProduct = async (id) => {
@@ -300,6 +319,20 @@ export default function AdminPage() {
                               📞 {order.shippingFullName || 'N/A'} - {order.shippingPhone || 'N/A'} - {order.shippingAddress || 'N/A'}
                             </p>
                           )}
+                          {order.items && order.items.length > 0 && (
+                            <div className="mt-2 text-xs text-[#2d2a26] bg-black/[0.02] border border-[#dbccb8]/10 rounded-lg p-2.5 max-w-md">
+                              <p className="font-bold text-[#8a8480] mb-1.5 uppercase tracking-wider text-[10px]">Sản Phẩm Đã Mua:</p>
+                              <ul className="list-disc list-inside space-y-1">
+                                {order.items.map((item, idx) => (
+                                  <li key={idx}>
+                                    <span className="font-semibold text-[#1a1a1a]">{item.product?.productName}</span> 
+                                    <span className="text-[#8a8480]"> (x{item.quantity})</span>
+                                    <span className="ml-1 text-[#8a8480]"> - ${item.subTotal?.toFixed(2)}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-4">
                           <span className="text-xl font-extrabold text-[#1a1a1a]">
@@ -336,7 +369,7 @@ export default function AdminPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-[#1a1a1a]">Danh Sách Sản Phẩm ({products.length})</h3>
                   <button
-                    onClick={() => setIsAddModalOpen(true)}
+                    onClick={() => { setNewProduct({ name: '', price: '', description: '', category: 'Unisex', availability: 10, imageUrl: '' }); setIsAddModalOpen(true); }}
                     className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-[#dbccb8] to-[#c9b8a0] text-[#1a1a1a] hover:shadow-lg active:scale-95 transition-all text-sm font-semibold btn-shine"
                   >
                     <FiPlus /> Thêm sản phẩm mới
@@ -368,7 +401,14 @@ export default function AdminPage() {
                             </td>
                             <td className="p-4 text-right font-semibold text-[#1a1a1a]">${prod.price?.toFixed(2)}</td>
                             <td className="p-4 text-center font-medium">{prod.availability}</td>
-                            <td className="p-4 text-center">
+                            <td className="p-4 text-center flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => handleEditClick(prod)}
+                                className="p-2 rounded-xl text-blue-600 hover:bg-blue-500/10 active:scale-90 transition-all"
+                                title="Sửa sản phẩm"
+                              >
+                                <FiEdit2 />
+                              </button>
                               <button
                                 onClick={() => handleDeleteProduct(prod.id)}
                                 className="p-2 rounded-xl text-rose-600 hover:bg-rose-500/10 active:scale-90 transition-all"
@@ -501,7 +541,9 @@ export default function AdminPage() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="glass-strong max-w-md w-full p-6 rounded-2xl shadow-2xl border border-[#dbccb8]/30 animate-scale-in">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-bold text-[#1a1a1a]">✨ Thêm sản phẩm mới</h3>
+              <h3 className="text-lg font-bold text-[#1a1a1a]">
+                {newProduct.id ? '✨ Chỉnh sửa sản phẩm' : '✨ Thêm sản phẩm mới'}
+              </h3>
               <button
                 onClick={() => setIsAddModalOpen(false)}
                 className="p-1 rounded-full hover:bg-black/[0.05] transition-all text-[#8a8480] hover:text-[#1a1a1a]"
@@ -556,10 +598,49 @@ export default function AdminPage() {
                   onChange={(e) => setNewProduct({ ...newProduct, category: e.target.value })}
                   className="w-full px-4 py-2.5 rounded-xl border border-[#dbccb8]/30 focus:border-[#dbccb8] focus:ring-1 focus:ring-[#dbccb8] bg-[#fffaf6] text-sm outline-none transition-all"
                 >
-                  <option value="Electronics">Electronics (Công Nghệ)</option>
-                  <option value="Clothing">Clothing (Thời Trang)</option>
-                  <option value="Books">Books (Sách Truyện)</option>
+                  <option value="Men">Nước Hoa Nam (Men)</option>
+                  <option value="Women">Nước Hoa Nữ (Women)</option>
+                  <option value="Unisex">Nước Hoa Unisex (Unisex)</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[#5a5550] uppercase tracking-wider mb-1">Hình ảnh sản phẩm</label>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    {newProduct.imageUrl && (
+                      <img 
+                        src={newProduct.imageUrl} 
+                        alt="Preview" 
+                        className="w-12 h-12 object-cover rounded-xl border border-[#dbccb8]/20 bg-white"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setNewProduct({ ...newProduct, imageUrl: reader.result });
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="w-full text-xs text-[#8a8480] file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-[11px] file:font-semibold file:bg-[#dbccb8]/20 file:text-[#5a5550] hover:file:bg-[#dbccb8]/30 transition-all cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Hoặc nhập đường dẫn ảnh (URL)..."
+                    value={newProduct.imageUrl || ''}
+                    onChange={(e) => setNewProduct({ ...newProduct, imageUrl: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-xl border border-[#dbccb8]/30 focus:border-[#dbccb8] focus:ring-1 focus:ring-[#dbccb8] bg-[#fffaf6] text-xs outline-none transition-all"
+                  />
+                </div>
               </div>
 
               <div>

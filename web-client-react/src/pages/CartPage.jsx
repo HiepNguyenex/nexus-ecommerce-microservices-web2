@@ -145,7 +145,7 @@ export default function CartPage() {
                   className="py-6 border-b border-[#dbccb8]/20 flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-[#fffaf6]"
                 >
                   <img
-                    src={BACKUP_IMAGES[item.product?.id] || DEFAULT_IMAGE}
+                    src={item.product?.imageUrl || BACKUP_IMAGES[item.product?.id] || DEFAULT_IMAGE}
                     alt={item.product?.productName}
                     className="w-16 h-16 object-cover border border-[#dbccb8]/20 grayscale hover:grayscale-0 transition-all duration-300 flex-shrink-0"
                   />

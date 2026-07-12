@@ -23,7 +23,7 @@ public class NotificationConsumer {
     @Autowired
     private NotificationLogRepository notificationLogRepository;
 
-    @KafkaListener(topics = "order-created", groupId = "notification-group")
+    @KafkaListener(topics = "order-created", groupId = "${spring.kafka.consumer.group-id:notification-group-v2}")
     public void consumeOrderCreated(OrderCreatedEvent event) {
         logger.info("Notification Service nhận được sự kiện order-created: {}", event);
 
@@ -39,7 +39,7 @@ public class NotificationConsumer {
             + " - Trạng thái: " + event.getStatus());
     }
 
-    @KafkaListener(topics = "payment-completed", groupId = "notification-group")
+    @KafkaListener(topics = "payment-completed", groupId = "${spring.kafka.consumer.group-id:notification-group-v2}")
     public void consumePaymentCompleted(PaymentCompletedEvent event) {
         logger.info("Notification Service nhận được sự kiện payment-completed: {}", event);
 
@@ -59,7 +59,7 @@ public class NotificationConsumer {
         notifyAdmin(adminMsg);
     }
 
-    @KafkaListener(topics = "order-shipped", groupId = "notification-group")
+    @KafkaListener(topics = "order-shipped", groupId = "${spring.kafka.consumer.group-id:notification-group-v2}")
     public void consumeOrderShipped(OrderShippedEvent event) {
         logger.info("Notification Service nhận được sự kiện order-shipped: {}", event);
 

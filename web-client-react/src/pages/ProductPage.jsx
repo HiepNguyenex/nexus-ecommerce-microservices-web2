@@ -105,7 +105,7 @@ export default function ProductPage() {
     );
   }
 
-  const imgUrl = BACKUP_IMAGES[product.id] || DEFAULT_IMAGE;
+  const imgUrl = product.imageUrl || BACKUP_IMAGES[product.id] || DEFAULT_IMAGE;
   const notes = SCENT_NOTES[product.id] || { top: "Hương trái cây tự nhiên", heart: "Hoa nhài, Hoa hồng", base: "Gỗ xạ hương, Hổ phách" };
 
   return (

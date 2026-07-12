@@ -33,6 +33,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     private static final List<String> PUBLIC_PATHS = Arrays.asList(
             "/api/accounts/login",
             "/api/accounts/register",
+            "/api/accounts/registration",
             "/api/accounts/refresh",
             "/api/accounts/logout"
     );

@@ -97,6 +97,18 @@
             <artifactId>embedded-redis</artifactId>
             <version>1.4.3</version>
         </dependency>
+
+        <!-- Circuit Breaker: Resilience4j — Availability & Recovery (Tiêu chí 13) -->
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>2.1.0</version>
+        </dependency>
+        <!-- Resilience4j cần Spring AOP để hoạt động với annotation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
     </dependencies>
 
     <dependencyManagement>

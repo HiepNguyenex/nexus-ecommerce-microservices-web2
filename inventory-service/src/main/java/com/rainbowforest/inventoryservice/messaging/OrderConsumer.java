@@ -21,7 +21,7 @@ public class OrderConsumer {
     @Autowired
     private InventoryRepository inventoryRepository;
 
-    @KafkaListener(topics = "order-created", groupId = "inventory-group")
+    @KafkaListener(topics = "order-created", groupId = "${spring.kafka.consumer.group-id:inventory-group-v2}")
     public void consumeOrderCreated(OrderCreatedEvent event) {
         logger.info("[Saga] Inventory Service nhận sự kiện order-created #{}: chuẩn bị tồn kho (RESERVATION)", event.getOrderId());
 
@@ -46,7 +46,7 @@ public class OrderConsumer {
         }
     }
 
-    @KafkaListener(topics = "order-shipped", groupId = "inventory-group")
+    @KafkaListener(topics = "order-shipped", groupId = "${spring.kafka.consumer.group-id:inventory-group-v2}")
     public void consumeOrderShipped(OrderShippedEvent event) {
         logger.info("[Saga] Inventory Service nhận sự kiện order-shipped #{}: TRỪ KHO chính thức", event.getOrderId());
 

@@ -6,9 +6,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 import com.rainbowforest.orderservice.domain.User;
 
-@FeignClient(name = "User", url = "http://localhost:8811/")
+/**
+ * FeignClient gọi user-service qua Eureka Service Discovery.
+ * Tên service "user-service" phải khớp với spring.application.name trong user-service.
+ */
+@FeignClient(name = "user-service")
 public interface UserClient {
 
     @GetMapping(value = "/users/{id}")
-    public User getUserById(@PathVariable("id") Long id);
+    User getUserById(@PathVariable("id") Long id);
 }

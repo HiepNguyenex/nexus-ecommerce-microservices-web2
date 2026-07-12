@@ -184,7 +184,7 @@ export default function HomePage() {
                   {/* Image wrapper */}
                   <div className="relative overflow-hidden mb-6 aspect-square bg-[#fffaf6]">
                     <img 
-                      src={CATEGORY_IMAGES[product.category] || DEFAULT_IMAGE} 
+                      src={product.imageUrl || CATEGORY_IMAGES[product.category] || DEFAULT_IMAGE} 
                       alt={product.productName}
                       className="w-full h-full object-cover grayscale opacity-90 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" 
                     />
