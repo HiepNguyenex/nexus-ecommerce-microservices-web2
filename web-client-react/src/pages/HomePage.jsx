@@ -4,7 +4,7 @@ import { productAPI, cartAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
-import { FiSearch, FiShoppingCart, FiStar, FiArrowRight } from 'react-icons/fi';
+import { FiSearch, FiShoppingCart, FiStar, FiArrowRight, FiHeart } from 'react-icons/fi';
 import heroForest from '../assets/hero_forest.png';
 import { motion } from 'motion/react';
 
@@ -17,9 +17,10 @@ const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1541643600914-78b084683
 
 const CATEGORIES = [
   { key: 'Tất Cả', label: 'Tất Cả', icon: '✨' },
-  { key: 'Men', label: 'Nước Hoa Nam', icon: '👔' },
-  { key: 'Women', label: 'Nước Hoa Nữ', icon: '👗' },
-  { key: 'Unisex', label: 'Nước Hoa Unisex', icon: '🧪' },
+  { key: 'Men', label: 'Nam', icon: 'Nam' },
+  { key: 'Women', label: 'Nữ', icon: 'Nữ' },
+  { key: 'Unisex', label: 'Unisex', icon: 'Unisex' },
+  { key: 'Wishlist', label: 'Yêu Thích', icon: '❤️' },
 ];
 
 const FEATURES = [
@@ -30,41 +31,89 @@ const FEATURES = [
 ];
 
 export default function HomePage() {
-  const [products, setProducts] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [category, setCategory] = useState('Tất Cả');
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('default');
+  const [maxPrice, setMaxPrice] = useState(300);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 8;
+  const [wishlist, setWishlist] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('wishlist') || '[]');
+    } catch {
+      return [];
+    }
+  });
   const { showToast } = useToast();
   const { user } = useAuth();
 
-  useEffect(() => { 
-    loadProducts(); 
-  }, []);
-
   useEffect(() => {
-    let result = products;
-    if (category !== 'Tất Cả') {
-      result = result.filter(p => p.category === category);
-    }
-    if (search) {
-      result = result.filter(p => 
-        p.productName?.toLowerCase().includes(search.toLowerCase()) || 
-        p.category?.toLowerCase().includes(search.toLowerCase())
-      );
-    }
-    setFiltered(result);
-  }, [products, category, search]);
+    fetchProducts();
+  }, [category, search, currentPage, maxPrice, sortBy]);
 
-  const loadProducts = async () => {
+  const fetchProducts = async () => {
+    setLoading(true);
     try {
-      const data = await productAPI.getAll();
-      setProducts(Array.isArray(data) ? data : (data?.data ? (Array.isArray(data.data) ? data.data : []) : []));
-    } catch { 
+      if (category === 'Wishlist') {
+        const data = await productAPI.getAll();
+        const fullList = Array.isArray(data) ? data : (data?.data ? (Array.isArray(data.data) ? data.data : []) : []);
+        let result = fullList.filter(p => wishlist.includes(p.id));
+        result = result.filter(p => (p.price || 0) <= maxPrice);
+        if (sortBy === 'price-asc') result.sort((a, b) => (a.price || 0) - (b.price || 0));
+        else if (sortBy === 'price-desc') result.sort((a, b) => (b.price || 0) - (a.price || 0));
+        else if (sortBy === 'name-asc') result.sort((a, b) => a.productName?.localeCompare(b.productName));
+        setFiltered(result);
+        setTotalPages(1);
+      } else {
+        const res = await productAPI.getAll(currentPage, pageSize, search, category);
+        if (res && res.content) {
+          let content = res.content || [];
+          content = content.filter(p => (p.price || 0) <= maxPrice);
+          if (sortBy === 'price-asc') content.sort((a, b) => (a.price || 0) - (b.price || 0));
+          else if (sortBy === 'price-desc') content.sort((a, b) => (b.price || 0) - (a.price || 0));
+          else if (sortBy === 'name-asc') content.sort((a, b) => a.productName?.localeCompare(b.productName));
+          
+          setFiltered(content);
+          setTotalPages(res.totalPages || 1);
+        } else {
+          const list = Array.isArray(res) ? res : [];
+          setFiltered(list);
+          setTotalPages(1);
+        }
+      }
+    } catch (err) {
       showToast('Không thể kết nối đến hệ thống cơ sở dữ liệu mùi hương.', 'error');
-    } finally { 
-      setLoading(false); 
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleCategoryChange = (catKey) => {
+    setCategory(catKey);
+    setCurrentPage(0);
+  };
+
+  const handleSearchChange = (val) => {
+    setSearch(val);
+    setCurrentPage(0);
+  };
+
+  const toggleWishlist = (e, productId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    let updated;
+    if (wishlist.includes(productId)) {
+      updated = wishlist.filter(id => id !== productId);
+      showToast('Đã xóa khỏi danh sách yêu thích.');
+    } else {
+      updated = [...wishlist, productId];
+      showToast('Đã thêm vào danh sách yêu thích! ❤️');
+    }
+    setWishlist(updated);
+    localStorage.setItem('wishlist', JSON.stringify(updated));
   };
 
   const addToCart = async (e, product) => {
@@ -107,12 +156,12 @@ export default function HomePage() {
                   type="text" 
                   placeholder="Tìm kiếm mùi hương..." 
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full bg-transparent pl-11 pr-4 py-3.5 text-sm text-[#2d2a26] placeholder-[#b8a690] outline-none font-light" 
                 />
                 {search && (
                   <button 
-                    onClick={() => setSearch('')} 
+                    onClick={() => handleSearchChange('')} 
                     className="mr-3 px-2 py-0.5 rounded bg-[#dbccb8]/20 text-[#8a8480] hover:text-[#2d2a26] text-xs font-mono"
                   >
                     clear
@@ -127,7 +176,7 @@ export default function HomePage() {
             <img 
               src={heroForest} 
               alt="Aroma Forest Collage" 
-              className="w-full h-full object-cover opacity-95 grayscale hover:grayscale-0 transition-all duration-1000 ease-out" 
+              className="w-full h-full object-cover opacity-95 transition-all duration-1000 ease-out" 
             />
             <div className="absolute inset-0 bg-gradient-to-r from-[#fffaf6] via-transparent to-transparent hidden lg:block" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#fffaf6] via-transparent to-transparent lg:hidden" />
@@ -137,21 +186,57 @@ export default function HomePage() {
 
       {/* ─── PRODUCTS SECTION (Minimalist Flat Grid) ─── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        {/* Category Filters */}
-        <div className="flex flex-wrap gap-2 mb-12 border-b border-[#dbccb8]/20 pb-6">
-          {CATEGORIES.map((cat) => (
-            <button 
-              key={cat.key} 
-              onClick={() => setCategory(cat.key)}
-              className={`px-6 py-2 rounded-full text-xs font-mono uppercase tracking-wider transition-all duration-300 border ${
-                category === cat.key 
-                  ? 'bg-[#1a1a1a] text-[#fffaf6] border-[#1a1a1a]' 
-                  : 'bg-transparent text-[#8a8480] border-[#dbccb8]/30 hover:border-[#8a8480] hover:text-[#1a1a1a]'
-              }`}
-            >
-              {cat.icon} {cat.label}
-            </button>
-          ))}
+        {/* Category Filters, Price range, Sorting */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-12 border-b border-[#dbccb8]/20 pb-8">
+          {/* Left: Category Filters */}
+          <div className="flex flex-wrap gap-2">
+            {CATEGORIES.map((cat) => (
+              <button 
+                key={cat.key} 
+                onClick={() => handleCategoryChange(cat.key)}
+                className={`px-5 py-2 rounded-full text-xs font-mono uppercase tracking-wider transition-all duration-300 border ${
+                  category === cat.key 
+                    ? 'bg-[#1a1a1a] text-[#fffaf6] border-[#1a1a1a]' 
+                    : 'bg-transparent text-[#8a8480] border-[#dbccb8]/30 hover:border-[#8a8480] hover:text-[#1a1a1a]'
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Right: Price slider & Sorting select */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-6">
+            {/* Price range */}
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#8a8480] whitespace-nowrap">Giá tối đa:</span>
+              <input 
+                type="range" 
+                min="0" 
+                max="300" 
+                step="10"
+                value={maxPrice} 
+                onChange={(e) => setMaxPrice(Number(e.target.value))}
+                className="w-32 accent-[#2d2a26] cursor-pointer"
+              />
+              <span className="text-xs font-mono font-semibold text-[#2d2a26]">${maxPrice}</span>
+            </div>
+
+            {/* Sorting */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-[#8a8480] whitespace-nowrap">Sắp xếp:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-3 py-1.5 rounded-lg border border-[#dbccb8]/40 bg-[#fffaf6] text-xs focus:outline-none focus:border-[#2d2a26] transition-all font-mono"
+              >
+                <option value="default">Mặc định</option>
+                <option value="price-asc">Giá: Thấp đến Cao</option>
+                <option value="price-desc">Giá: Cao đến Thấp</option>
+                <option value="name-asc">Tên: A-Z</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {/* Products Grid */}
@@ -173,7 +258,8 @@ export default function HomePage() {
             <p className="text-xs text-[#b8a690] uppercase font-mono tracking-wider">Thử chọn bộ lọc khác.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-0 border-t border-l border-[#dbccb8]/20">
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-0 border-t border-l border-[#dbccb8]/20">
             {filtered.map((product) => (
               <Link 
                 key={product.id} 
@@ -186,8 +272,16 @@ export default function HomePage() {
                     <img 
                       src={product.imageUrl || CATEGORY_IMAGES[product.category] || DEFAULT_IMAGE} 
                       alt={product.productName}
-                      className="w-full h-full object-cover grayscale opacity-90 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-700" 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-all duration-700" 
+                      onError={(e) => { e.target.onerror = null; e.target.src = DEFAULT_IMAGE; }}
                     />
+                    <button
+                      onClick={(e) => toggleWishlist(e, product.id)}
+                      className="absolute top-2 right-2 p-2 rounded-full bg-[#fffaf6]/90 border border-[#dbccb8]/30 shadow-sm text-[#b8a690] hover:text-rose-500 hover:scale-110 active:scale-95 transition-all duration-200 z-10"
+                      title={wishlist.includes(product.id) ? "Xóa khỏi yêu thích" : "Yêu thích"}
+                    >
+                      <FiHeart className={`text-xs ${wishlist.includes(product.id) ? "fill-rose-500 text-rose-500" : ""}`} />
+                    </button>
                     <div className="absolute top-0 left-0">
                       <span className="px-2 py-0.5 rounded bg-[#fffaf6] border border-[#dbccb8]/20 text-[#8a7a6a] text-[9px] font-mono uppercase tracking-widest">
                         {product.category || 'General'}
@@ -223,6 +317,44 @@ export default function HomePage() {
               </Link>
             ))}
           </div>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-12 pt-8 border-t border-[#dbccb8]/10">
+              <button
+                disabled={currentPage === 0}
+                onClick={() => setCurrentPage(prev => Math.max(0, prev - 1))}
+                className="px-4 py-2 rounded-full border border-[#dbccb8]/30 text-xs font-mono disabled:opacity-40 disabled:pointer-events-none hover:border-[#1a1a1a] transition-all bg-[#fffaf6] text-[#5a5550] active:scale-95"
+              >
+                ◀ TRƯỚC
+              </button>
+              
+              <div className="flex items-center gap-1">
+                {[...Array(totalPages)].map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setCurrentPage(i)}
+                    className={`w-8 h-8 rounded-full text-xs font-mono transition-all border ${
+                      currentPage === i
+                        ? 'bg-[#1a1a1a] text-[#fffaf6] border-[#1a1a1a]'
+                        : 'bg-transparent text-[#8a8480] border-transparent hover:border-[#dbccb8]'
+                    }`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                disabled={currentPage >= totalPages - 1}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages - 1, prev + 1))}
+                className="px-4 py-2 rounded-full border border-[#dbccb8]/30 text-xs font-mono disabled:opacity-40 disabled:pointer-events-none hover:border-[#1a1a1a] transition-all bg-[#fffaf6] text-[#5a5550] active:scale-95"
+              >
+                SAU ▶
+              </button>
+            </div>
+          )}
+          </>
         )}
       </section>
 

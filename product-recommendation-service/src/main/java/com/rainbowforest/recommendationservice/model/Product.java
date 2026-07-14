@@ -10,7 +10,6 @@ import java.util.List;
 public class Product {
 
     @Id
-    @GeneratedValue (strategy = GenerationType.IDENTITY)
     private Long id;
     @Column (name = "product_name")
     private String productName;
@@ -19,6 +18,14 @@ public class Product {
     @JsonIgnore
     private List<Recommendation> recomendations;
     
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public Product() {
     	
     }

@@ -44,6 +44,11 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public List<Order> getOrdersByUserId(Long userId) {
+        return orderRepository.findByUserId(userId);
+    }
+
+    @Override
     public boolean isOrderOwner(Long orderId, String userName) {
         return orderRepository.findByIdAndUserUserName(orderId, userName).isPresent();
     }

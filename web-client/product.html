@@ -102,7 +102,7 @@
 
         function renderProductDetail() {
             const card = document.getElementById('product-detail-card');
-            const imgUrl = backupImages[product.id] || defaultImage;
+            const imgUrl = product.imageUrl || backupImages[product.id] || defaultImage;
             
             card.innerHTML = `
                 <div class="product-detail-layout">

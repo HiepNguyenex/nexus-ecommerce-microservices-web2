@@ -7,6 +7,8 @@ import com.rainbowforest.recommendationservice.model.Product;
 import com.rainbowforest.recommendationservice.model.Recommendation;
 import com.rainbowforest.recommendationservice.model.User;
 import com.rainbowforest.recommendationservice.service.RecommendationService;
+import com.rainbowforest.recommendationservice.repository.ProductRepository;
+import com.rainbowforest.recommendationservice.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +31,12 @@ public class RecommendationController {
 
     @Autowired
     private UserClient userClient;
+
+    @Autowired
+    private ProductRepository productRepository;
+
+    @Autowired
+    private UserRepository userRepository;
     
     @Autowired
     private HeaderGenerator headerGenerator;
@@ -51,16 +59,42 @@ public class RecommendationController {
         		headerGenerator.getHeadersForError(),
         		HttpStatus.NOT_FOUND);
     }
+    @GetMapping(value = "/recommendations/product/{productId}")
+    private ResponseEntity<List<Recommendation>> getProductRecommendations(@PathVariable("productId") Long productId) {
+        List<Recommendation> recommendations = recommendationService.getAllRecommendationByProductId(productId);
+        if (recommendations != null && !recommendations.isEmpty()) {
+            return new ResponseEntity<List<Recommendation>>(
+                recommendations,
+                headerGenerator.getHeadersForSuccessGetMethod(),
+                HttpStatus.OK);
+        }
+        return new ResponseEntity<List<Recommendation>>(
+                headerGenerator.getHeadersForError(),
+                HttpStatus.NOT_FOUND);
+    }
     
     @PostMapping(value = "/{userId}/recommendations/{productId}")
     private ResponseEntity<Recommendation> saveRecommendations(
             @PathVariable ("userId") Long userId,
             @PathVariable ("productId") Long productId,
             @RequestParam ("rating") int rating,
+            @RequestParam (value = "comment", required = false) String comment,
             HttpServletRequest request){
     	
-    	Product product = productClient.getProductById(productId);
-		User user = userClient.getUserById(userId);
+    	Product product = productRepository.findById(productId).orElse(null);
+    	if (product == null) {
+    		product = productClient.getProductById(productId);
+    		if (product != null) {
+    			product = productRepository.save(product);
+    		}
+    	}
+		User user = userRepository.findById(userId).orElse(null);
+		if (user == null) {
+			user = userClient.getUserById(userId);
+			if (user != null) {
+				user = userRepository.save(user);
+			}
+		}
     	
 		if(product != null && user != null) {
 			try {
@@ -68,6 +102,9 @@ public class RecommendationController {
 				recommendation.setProduct(product);
 				recommendation.setUser(user);
 				recommendation.setRating(rating);
+				if (comment != null) {
+					recommendation.setComment(comment);
+				}
 				recommendationService.saveRecommendation(recommendation);
 				return new ResponseEntity<Recommendation>(
 						recommendation,

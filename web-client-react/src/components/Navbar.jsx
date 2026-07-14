@@ -30,7 +30,10 @@ export default function Navbar() {
 
   const navLinks = [
     { to: '/', label: 'Trang Chủ', icon: FiHome },
-    ...(user ? [{ to: '/cart', label: 'Giỏ Hàng', icon: FiShoppingCart }] : []),
+    ...(user ? [
+      { to: '/profile', label: 'Tài Khoản', icon: FiUser },
+      { to: '/cart', label: 'Giỏ Hàng', icon: FiShoppingCart }
+    ] : []),
     ...(isAdmin ? [{ to: '/admin', label: 'Admin', icon: FiShield }] : []),
   ];
 
@@ -93,6 +96,10 @@ export default function Navbar() {
                       <p className="text-xs text-[#b8a690]">{isAdmin ? '🔒 Administrator' : '👤 User'}</p>
                     </div>
                     <div className="p-1">
+                      <button onClick={() => { setUserMenuOpen(false); navigate('/profile'); }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#5a5550] hover:bg-[#dbccb8]/10 transition-all">
+                        <FiUser className="text-[#c9b8a0]" /> Trang Cá Nhân
+                      </button>
                       <button onClick={() => { setUserMenuOpen(false); navigate('/cart'); }}
                         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[#5a5550] hover:bg-[#dbccb8]/10 transition-all">
                         <FiShoppingCart className="text-[#c9b8a0]" /> Giỏ Hàng

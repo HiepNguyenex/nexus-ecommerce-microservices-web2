@@ -54,6 +54,11 @@ if ($javaProcs) {
     $javaProcs | Stop-Process -Force
     Write-Host "  Stopped $($javaProcs.Count) running java services." -ForegroundColor Green
 }
+$nodeProcs = Get-Process -Name node -ErrorAction SilentlyContinue
+if ($nodeProcs) {
+    $nodeProcs | Stop-Process -Force
+    Write-Host "  Stopped $($nodeProcs.Count) running Node/NPM web servers." -ForegroundColor Green
+}
 
 # 4. Start 9 Microservices
 Write-Host "[4/4] Starting 9 Microservices..." -ForegroundColor Yellow

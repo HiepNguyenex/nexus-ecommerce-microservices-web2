@@ -13,14 +13,16 @@ public class Recommendation {
     @Column (name = "rating")
     private int rating;
 
-    @ManyToOne (cascade = CascadeType.ALL)
+    @ManyToOne
     @JoinColumn (name = "product_id")
-
     private Product product;
 
-    @ManyToOne (cascade = CascadeType.ALL)
+    @ManyToOne
     @JoinColumn (name = "user_id")
     private User user;
+
+    @Column (name = "comment", length = 1000)
+    private String comment;
     
     public Recommendation() {
 	
@@ -30,6 +32,13 @@ public class Recommendation {
         this.rating = rating;
         this.product = product;
         this.user = user;
+    }
+
+	public Recommendation(int rating, Product product, User user, String comment) {
+        this.rating = rating;
+        this.product = product;
+        this.user = user;
+        this.comment = comment;
     }
 
     public void setId(Long id) {
@@ -62,5 +71,13 @@ public class Recommendation {
 
     public void setUser(User user) {
         this.user = user;
+    }
+
+    public String getComment() {
+        return comment;
+    }
+
+    public void setComment(String comment) {
+        this.comment = comment;
     }
 }

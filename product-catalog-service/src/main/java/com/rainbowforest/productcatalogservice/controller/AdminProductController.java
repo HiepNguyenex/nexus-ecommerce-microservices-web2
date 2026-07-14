@@ -9,7 +9,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admin")
@@ -22,6 +26,30 @@ public class AdminProductController {
     
     @Autowired
     private HeaderGenerator headerGenerator;
+
+    @PostMapping(value = "/products/upload")
+    public ResponseEntity<Map<String, String>> uploadProductImage(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty()) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+        try {
+            String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
+            String targetDirPath = "D:/Bai Tap/java-project/e-commerce-microservices-master/web-client-react/public/uploads/";
+            File targetDir = new File(targetDirPath);
+            if (!targetDir.exists()) {
+                targetDir.mkdirs();
+            }
+            File destFile = new File(targetDir, fileName);
+            file.transferTo(destFile);
+
+            Map<String, String> response = new HashMap<>();
+            response.put("url", "/uploads/" + fileName);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (Exception e) {
+            log.error("Failed to upload image", e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
     @PostMapping(value = "/products")
     private ResponseEntity<Product> addProduct(@RequestBody Product product, HttpServletRequest request){

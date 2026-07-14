@@ -114,9 +114,19 @@ export const authAPI = {
 
 // Product APIs
 export const productAPI = {
-  getAll: () => api.get('/catalog/products'),
+  getAll: (page, size, search, category) => {
+    if (page !== undefined) {
+      return api.get('/catalog/products', { params: { page, size, search, category } });
+    }
+    return api.get('/catalog/products');
+  },
   addProduct: (product) => api.post('/catalog/admin/products', product),
   deleteProduct: (id) => api.delete(`/catalog/admin/products/${id}`),
+  uploadImage: (formData) => api.post('/catalog/admin/products/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  }),
 };
 
 // Cart APIs
@@ -124,17 +134,26 @@ export const cartAPI = {
   getCart: () => api.get('/shop/cart'),
   addItem: (productId, quantity = 1) =>
     api.post(`/shop/cart?productId=${productId}&quantity=${quantity}`),
-  removeItem: (cartItemId) =>
-    api.delete(`/shop/cart/${cartItemId}`),
-  updateQuantity: (cartItemId, quantity) =>
-    api.put(`/shop/cart/${cartItemId}?quantity=${quantity}`),
+  removeItem: (productId) =>
+    api.delete(`/shop/cart?productId=${productId}`),
+};
+
+// Coupon APIs
+export const couponAPI = {
+  validate: (code) => api.get(`/shop/coupons/validate?code=${encodeURIComponent(code)}`),
+  getAll: () => api.get('/shop/admin/coupons'),
+  add: (coupon) => api.post('/shop/admin/coupons', coupon),
+  delete: (id) => api.delete(`/shop/admin/coupons/${id}`),
+  toggle: (id) => api.post(`/shop/admin/coupons/${id}/toggle`),
 };
 
 // Order APIs
 export const orderAPI = {
-  createOrder: (userId) => api.post(`/shop/order/${userId}`),
+  createOrder: (userId, promoCode) =>
+    api.post(`/shop/order/${userId}${promoCode ? `?promoCode=${encodeURIComponent(promoCode)}` : ''}`),
   getAll: () => api.get('/shop/orders'),
   getMyOrders: () => api.get('/shop/orders/my'),
+  getByUserId: (userId) => api.get(`/shop/orders/user/${userId}`),
   getById: (orderId) => api.get(`/shop/orders/${orderId}`),
   updateStatus: (orderId, status) =>
     api.put(`/shop/orders/${orderId}/status?status=${status}`),
@@ -143,6 +162,10 @@ export const orderAPI = {
 // Recommendation APIs
 export const recommendationAPI = {
   getAll: () => api.get('/review/recommendations'),
+  getByProduct: (productId) => api.get(`/review/recommendations/product/${productId}`),
+  addRecommendation: (userId, productId, rating, comment) =>
+    api.post(`/review/${userId}/recommendations/${productId}?rating=${rating}${comment ? `&comment=${encodeURIComponent(comment)}` : ''}`),
+  deleteRecommendation: (id) => api.delete(`/review/recommendations/${id}`),
 };
 
 // Admin APIs

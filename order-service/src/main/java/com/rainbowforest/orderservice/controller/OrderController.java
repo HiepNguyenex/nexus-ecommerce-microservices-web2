@@ -20,8 +20,11 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.rainbowforest.orderservice.domain.Coupon;
+import com.rainbowforest.orderservice.repository.CouponRepository;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
@@ -39,6 +42,9 @@ public class OrderController {
     private CartService cartService;
 
     @Autowired
+    private CouponRepository couponRepository;
+
+    @Autowired
     private HeaderGenerator headerGenerator;
 
     @Autowired
@@ -47,13 +53,14 @@ public class OrderController {
     @PostMapping(value = "/order/{userId}")
     public ResponseEntity<Order> saveOrder(
     		@PathVariable("userId") Long userId,
+    		@RequestParam(value = "promoCode", required = false) String promoCode,
     		@RequestHeader(value = "Cookie") String cartId,
     		HttpServletRequest request){
     	
         List<Item> cart = cartService.getAllItemsFromCart(cartId);
         User user = userClient.getUserById(userId);   
         if(cart != null && user != null) {
-        	Order order = this.createOrder(cart, user);
+        	Order order = this.createOrder(cart, user, promoCode);
         	try{
                 orderService.saveOrder(order);
                 cartService.deleteCart(cartId);
@@ -139,6 +146,26 @@ public class OrderController {
     @GetMapping(value = "/orders/my")
     public ResponseEntity<List<Order>> getMyOrders(@RequestHeader("X-User-Name") String userName) {
         List<Order> orders = orderService.getOrdersByUserName(userName);
+        if (!orders.isEmpty()) {
+            return new ResponseEntity<List<Order>>(
+                    orders,
+                    headerGenerator.getHeadersForSuccessGetMethod(),
+                    HttpStatus.OK);
+        }
+        return new ResponseEntity<List<Order>>(
+                headerGenerator.getHeadersForError(),
+                HttpStatus.NOT_FOUND);
+    }
+
+    @GetMapping(value = "/orders/user/{userId}")
+    public ResponseEntity<List<Order>> getOrdersByUserId(
+            @PathVariable("userId") Long userId,
+            @RequestHeader("X-User-Roles") String roles,
+            @RequestHeader("X-User-Id") String currentUserId) {
+        if (!roles.contains("ROLE_ADMIN") && !currentUserId.equals(userId.toString())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        List<Order> orders = orderService.getOrdersByUserId(userId);
         if (!orders.isEmpty()) {
             return new ResponseEntity<List<Order>>(
                     orders,
@@ -239,11 +266,29 @@ public class OrderController {
                 HttpStatus.NOT_FOUND);
     }
     
-    private Order createOrder(List<Item> cart, User user) {
+    private Order createOrder(List<Item> cart, User user, String promoCode) {
         Order order = new Order();
         order.setItems(cart);
         order.setUser(user);
-        order.setTotal(OrderUtilities.countTotalPrice(cart));
+        java.math.BigDecimal total = OrderUtilities.countTotalPrice(cart);
+        if (promoCode != null && !promoCode.trim().isEmpty()) {
+            Optional<Coupon> opt = couponRepository.findByCode(promoCode.trim().toUpperCase());
+            if (opt.isPresent()) {
+                Coupon coupon = opt.get();
+                if (coupon.getActive() 
+                    && !coupon.getExpirationDate().isBefore(LocalDate.now()) 
+                    && coupon.getUsedCount() < coupon.getMaxUses()) {
+                    
+                    double factor = (100.0 - coupon.getDiscountPercent()) / 100.0;
+                    total = total.multiply(new java.math.BigDecimal(String.valueOf(factor)));
+                    
+                    // Increment used count
+                    coupon.setUsedCount(coupon.getUsedCount() + 1);
+                    couponRepository.save(coupon);
+                }
+            }
+        }
+        order.setTotal(total);
         order.setOrderedDate(LocalDate.now());
         order.setStatus("PAYMENT_EXPECTED");
 

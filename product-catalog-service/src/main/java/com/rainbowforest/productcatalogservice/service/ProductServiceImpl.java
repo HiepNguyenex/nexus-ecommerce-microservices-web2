@@ -11,6 +11,8 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @Transactional
@@ -52,7 +54,7 @@ public class ProductServiceImpl implements ProductService {
     @Cacheable(value = "products", key = "#id")
     public Product getProductById(Long id) {
         log.info("[CACHE MISS] getProductById({}) — truy vấn từ database", id);
-        return productRepository.getOne(id);
+        return productRepository.findById(id).orElse(null);
     }
 
     /**
@@ -87,5 +89,11 @@ public class ProductServiceImpl implements ProductService {
     public void deleteProduct(Long productId) {
         log.info("[CACHE EVICT] deleteProduct({}) — xóa cache products", productId);
         productRepository.deleteById(productId);
+    }
+
+    @Override
+    public Page<Product> getProductsPaged(String category, String search, Pageable pageable) {
+        log.info("getProductsPaged(category={}, search={}) — truy vấn phân trang", category, search);
+        return productRepository.searchProducts(category, search, pageable);
     }
 }

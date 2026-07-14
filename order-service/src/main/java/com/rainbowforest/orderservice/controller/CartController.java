@@ -18,8 +18,23 @@ public class CartController {
     @Autowired
     private HeaderGenerator headerGenerator;
 
+    private String resolveCartId(String userName, String cookieId) {
+        if (userName != null && !userName.isEmpty()) {
+            return userName;
+        }
+        return cookieId;
+    }
+
     @GetMapping (value = "/cart")
-    public ResponseEntity<List<Object>> getCart(@RequestHeader(value = "Cookie") String cartId){
+    public ResponseEntity<List<Object>> getCart(
+            @RequestHeader(value = "X-User-Name", required = false) String userName,
+            @RequestHeader(value = "Cookie", required = false) String cookieId){
+        String cartId = resolveCartId(userName, cookieId);
+        if (cartId == null || cartId.isEmpty()) {
+            return new ResponseEntity<List<Object>>(
+                    headerGenerator.getHeadersForError(),
+                    HttpStatus.BAD_REQUEST);
+        }
         List<Object> cart = cartService.getCart(cartId);
         if(!cart.isEmpty()) {
         	return new ResponseEntity<List<Object>>(
@@ -36,8 +51,15 @@ public class CartController {
     public ResponseEntity<List<Object>> addItemToCart(
             @RequestParam("productId") Long productId,
             @RequestParam("quantity") Integer quantity,
-            @RequestHeader(value = "Cookie") String cartId,
+            @RequestHeader(value = "X-User-Name", required = false) String userName,
+            @RequestHeader(value = "Cookie", required = false) String cookieId,
             HttpServletRequest request) {
+        String cartId = resolveCartId(userName, cookieId);
+        if (cartId == null || cartId.isEmpty()) {
+            return new ResponseEntity<List<Object>>(
+                    headerGenerator.getHeadersForError(),
+                    HttpStatus.BAD_REQUEST);
+        }
         List<Object> cart = cartService.getCart(cartId);
         if(cart != null) {
         	if(cart.isEmpty()){
@@ -50,7 +72,7 @@ public class CartController {
         		}
         	}
         	return new ResponseEntity<List<Object>>(
-        			cart,
+        			cartService.getCart(cartId), // return freshly updated cart
         			headerGenerator.getHeadersForSuccessPostMethod(request, cartId),
         			HttpStatus.CREATED);
         }
@@ -62,7 +84,12 @@ public class CartController {
     @DeleteMapping(value = "/cart", params = "productId")
     public ResponseEntity<Void> removeItemFromCart(
             @RequestParam("productId") Long productId,
-            @RequestHeader(value = "Cookie") String cartId){
+            @RequestHeader(value = "X-User-Name", required = false) String userName,
+            @RequestHeader(value = "Cookie", required = false) String cookieId){
+        String cartId = resolveCartId(userName, cookieId);
+        if (cartId == null || cartId.isEmpty()) {
+            return new ResponseEntity<Void>(HttpStatus.BAD_REQUEST);
+        }
     	List<Object> cart = cartService.getCart(cartId);
     	if(cart != null) {
     		cartService.deleteItemFromCart(cartId, productId);

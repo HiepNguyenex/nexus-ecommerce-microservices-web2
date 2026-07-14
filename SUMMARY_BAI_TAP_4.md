@@ -55,7 +55,7 @@ Tất cả services đăng ký với EUREKA SERVER (:8761)
 | `api-gateway` | 8900 | - | ✅ UP | Spring Cloud Gateway + JWT Filter + CORS |
 | `user-service` | 8811 | MySQL `users` | ✅ UP | JWT /login endpoint |
 | `product-catalog-service` | 8810 | MySQL `product_catalog` | ✅ UP | - |
-| `product-recommendation-service` | 8812 | MySQL `product_recommendations` | ✅ UP | - |
+| `product-recommendation-service` | 8812 | MySQL `product_recommendations` | ✅ UP | Kafka Consumer mới lắng nghe `order-created` để tự động gợi ý |
 | `order-service` | 8813 | MySQL `orders` | ✅ UP | Kafka Producer |
 | `payment-service` | 8815 | H2 in-memory | ✅ UP | Kafka Consumer mới |
 | `inventory-service` | 8816 | H2 in-memory | ✅ UP | Kafka Consumer mới |
@@ -155,10 +155,12 @@ Khách đặt hàng (POST /api/shop/order/{userId})
        │
        ├── inventory-service: Nhận sự kiện → Trừ số lượng kho (giả lập, lưu H2)
        │
+       ├── product-recommendation-service: Nhận sự kiện → Tự động tạo gợi ý 5 sao cho sản phẩm đã mua
+       │
        └── notification-service: Nhận sự kiện → In log giả lập email
 ```
 
-> **Lưu ý quan trọng**: Kafka broker phải được chạy mới hoạt động luồng này. Nếu không có Docker/Kafka, các services vẫn chạy bình thường nhưng sẽ in cảnh báo kết nối Kafka trong log. Tính năng đặt hàng vẫn hoạt động, chỉ thiếu các bước xử lý bất đồng bộ phía sau.
+> **Lưu ý quan trọng**: Dự án đã được nâng cấp kết nối trực tiếp tới **Kafka Cloud (Aiven)** qua SSL/SASL. Do đó, người dùng **không cần** chạy Zookeeper & Kafka cục bộ qua Docker Desktop nữa. Chỉ cần kết nối Internet, luồng bất đồng bộ của cả 5 services (`order-service`, `payment-service`, `inventory-service`, `product-recommendation-service`, `notification-service`) sẽ tự động hoạt động đồng bộ.
 
 ---
 
@@ -233,6 +235,8 @@ e-commerce-microservices-master/
 | User/Product thiếu getter/setter cho `id` | Thêm thủ công getter `getId()`, `getProductId()` |
 | CORS block browser gọi API | Thêm `CorsWebFilter` Bean vào `WebSecurityConfig` |
 | Gateway cần tích hợp JWT | Viết `JwtAuthenticationFilter` implements `GlobalFilter` |
+| Lỗi Hibernate Lazy Initialization (500) tại Catalog Service | Chuyển `getOne(id)` thành `findById(id).orElse(null)` để tránh proxy initialization error khi Feign Client truy xuất giá sản phẩm |
+| Detached Entity Persistence Exception tại Recommendation Service | Loại bỏ `@GeneratedValue` trên các thực thể replica (`Product`, `User`), thêm `@Transactional` cho service, và loại bỏ `CascadeType.ALL` trên `@ManyToOne` để tránh lỗi lưu trùng khoá chính và ngăn chặn việc xoá nhầm sản phẩm/người dùng khi xoá đánh giá |
 
 ---
 
@@ -286,11 +290,13 @@ Get-Content "D:\Bai Tap\java-project\e-commerce-microservices-master\logs\order.
 File: `seed.sql` - Đã import vào MySQL XAMPP:
 
 **Products (product_catalog DB)**:
-- ID 1: Smartphone Galaxy S21 - $799.99 - Electronics
-- ID 2: MacBook Pro 13 - $1299.99 - Electronics
-- ID 3: Leather Jacket - $120.00 - Clothing
-- ID 4: Running Shoes - $85.50 - Clothing
-- ID 5: Java Programming Book - $45.00 - Books
+- ID 1: Le Labo Santal 33 - $310.00 - Unisex
+- ID 2: Chanel No. 5 - $165.00 - Women
+- ID 3: Dior Sauvage - $145.00 - Men
+- ID 4: Byredo Gypsy Water - $200.00 - Unisex
+- ID 5: Bleu de Chanel - $150.00 - Men
+- ID 6: Baccarat Rouge 540 - $325.00 - Unisex
+- ... và các sản phẩm nước hoa cao cấp khác (Tổng cộng 18 sản phẩm).
 
 **Users (users DB)**:
 - `johndoe` / `password123` → ROLE_USER
@@ -300,12 +306,12 @@ File: `seed.sql` - Đã import vào MySQL XAMPP:
 
 ## 14. VIỆC CÒN LẠI / CÓ THỂ LÀM TIẾP
 
-- [ ] Cài Docker Desktop và chạy Kafka để kiểm thử toàn bộ luồng bất đồng bộ
+- [x] Triển khai và kết nối Kafka Cloud (Aiven) thành công cho cả 5 services để chạy luồng bất đồng bộ
 - [ ] Mã hoá password bằng BCrypt (hiện đang dùng NoOpPasswordEncoder)
 - [ ] Thêm tính năng tải ảnh sản phẩm thực tế (hiện dùng Unsplash URL backup)
 - [ ] Đẩy source code lên GitHub theo yêu cầu bài tập
 - [ ] Thêm validation và error handling chi tiết hơn cho các form
-- [ ] Implement chức năng quản lý User (kích hoạt/khóa tài khoản) tại Admin Dashboard
+- [x] Thực thi và kiểm thử thành công chức năng quản trị tài khoản (khóa/mở khóa) tại Admin Dashboard
 
 ---
 

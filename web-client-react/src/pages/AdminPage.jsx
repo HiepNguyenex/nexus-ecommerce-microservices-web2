@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { adminAPI, orderAPI, productAPI, authAPI } from '../services/api';
+import { adminAPI, orderAPI, productAPI, authAPI, couponAPI } from '../services/api';
 import Navbar from '../components/Navbar';
 import { 
   FiDollarSign, 
@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [usersList, setUsersList] = useState([]);
+  const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // State for Add Product Modal
@@ -46,6 +47,14 @@ export default function AdminPage() {
     imageUrl: ''
   });
 
+  const [newCoupon, setNewCoupon] = useState({
+    code: '',
+    discountPercent: 10,
+    expirationDate: '',
+    maxUses: 100,
+    active: true
+  });
+
   useEffect(() => {
     if (isAdmin) {
       loadData();
@@ -57,13 +66,14 @@ export default function AdminPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [revData, orderData, notifData, statsData, prodData, userData] = await Promise.allSettled([
+      const [revData, orderData, notifData, statsData, prodData, userData, couponData] = await Promise.allSettled([
         adminAPI.getRevenue(),
         orderAPI.getAll(),
         adminAPI.getNotificationLogs(),
         adminAPI.getNotificationStats(),
         productAPI.getAll(),
         authAPI.getUsers(),
+        couponAPI.getAll(),
       ]);
 
       if (revData.status === 'fulfilled') setRevenue(revData.value);
@@ -72,10 +82,54 @@ export default function AdminPage() {
       if (statsData.status === 'fulfilled') setStats(statsData.value);
       if (prodData.status === 'fulfilled') setProducts(prodData.value || []);
       if (userData.status === 'fulfilled') setUsersList(userData.value || []);
+      if (couponData.status === 'fulfilled') setCoupons(couponData.value || []);
     } catch {
       showToast('Không thể tải một số dữ liệu quản trị.', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAddCoupon = async (e) => {
+    e.preventDefault();
+    if (!newCoupon.code || !newCoupon.expirationDate) {
+      showToast('Vui lòng điền mã và ngày hết hạn.', 'error');
+      return;
+    }
+    try {
+      await couponAPI.add({
+        code: newCoupon.code,
+        discountPercent: Number(newCoupon.discountPercent),
+        expirationDate: newCoupon.expirationDate,
+        maxUses: Number(newCoupon.maxUses),
+        usedCount: 0,
+        active: newCoupon.active
+      });
+      showToast('Thêm mã giảm giá thành công!');
+      setNewCoupon({ code: '', discountPercent: 10, expirationDate: '', maxUses: 100, active: true });
+      loadData();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Không thể thêm mã giảm giá.', 'error');
+    }
+  };
+
+  const handleDeleteCoupon = async (id) => {
+    try {
+      await couponAPI.delete(id);
+      showToast('Đã xóa mã giảm giá.');
+      loadData();
+    } catch {
+      showToast('Không thể xóa mã giảm giá.', 'error');
+    }
+  };
+
+  const handleToggleCoupon = async (id) => {
+    try {
+      await couponAPI.toggle(id);
+      showToast('Đã thay đổi trạng thái mã giảm giá.');
+      loadData();
+    } catch {
+      showToast('Không thể cập nhật trạng thái.', 'error');
     }
   };
 
@@ -181,6 +235,7 @@ export default function AdminPage() {
     { id: 'orders', label: 'Đơn Hàng', icon: FiShoppingBag },
     { id: 'products', label: 'Sản Phẩm', icon: FiBox },
     { id: 'users', label: 'Người Dùng', icon: FiUsers },
+    { id: 'coupons', label: 'Mã Giảm Giá', icon: FiDollarSign },
     { id: 'notifications', label: 'Logs Kafka', icon: FiBell },
   ];
 
@@ -267,6 +322,70 @@ export default function AdminPage() {
                     <div className="p-4 rounded-xl bg-black/[0.01] border border-[#dbccb8]/10">
                       <p className="text-xs text-[#8a8480] uppercase tracking-wider">Đến Ngày</p>
                       <p className="text-sm font-medium text-[#2d2a26] mt-1.5">{revenue?.to || '---'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visual Analytics Charts */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Chart 1: Revenue by Status */}
+                  <div className="glass-strong rounded-2xl p-6 shadow-sm">
+                    <h3 className="text-sm font-semibold uppercase font-mono tracking-wider text-[#8a8480] mb-4">Phân Tích Doanh Thu Theo Trạng Thái</h3>
+                    <div className="space-y-4">
+                      {['PAID', 'PAYMENT_EXPECTED', 'SHIPPED', 'COMPLETED'].map((status) => {
+                        const statusOrders = orders.filter(o => o.status === status);
+                        const statusRevenue = statusOrders.reduce((sum, o) => sum + (o.total || 0), 0);
+                        const maxVal = orders.reduce((sum, o) => sum + (o.total || 0), 0) || 1;
+                        const percentage = Math.min(100, Math.round((statusRevenue / maxVal) * 100));
+                        
+                        let colorClass = 'bg-[#a8c5a0]'; // green for paid
+                        let label = 'Đã thanh toán';
+                        if (status === 'PAYMENT_EXPECTED') { colorClass = 'bg-[#d4b896]'; label = 'Chờ thanh toán'; }
+                        if (status === 'SHIPPED') { colorClass = 'bg-purple-400'; label = 'Đang giao'; }
+                        if (status === 'COMPLETED') { colorClass = 'bg-blue-400'; label = 'Hoàn thành'; }
+
+                        return (
+                          <div key={status} className="space-y-1.5">
+                            <div className="flex justify-between text-xs">
+                              <span className="font-medium text-[#2d2a26]">{label}</span>
+                              <span className="font-mono text-[#8a8480]">${statusRevenue.toFixed(2)} ({percentage}%)</span>
+                            </div>
+                            <div className="w-full h-2 rounded-full bg-[#dbccb8]/20 overflow-hidden">
+                              <div className={`h-full rounded-full transition-all duration-1000 ${colorClass}`} style={{ width: `${percentage}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Chart 2: Product Category Distribution */}
+                  <div className="glass-strong rounded-2xl p-6 shadow-sm">
+                    <h3 className="text-sm font-semibold uppercase font-mono tracking-wider text-[#8a8480] mb-4">Cơ Cấu Danh Mục Sản Phẩm</h3>
+                    <div className="space-y-4">
+                      {['Men', 'Women', 'Unisex'].map((cat) => {
+                        const catProducts = products.filter(p => p.category === cat);
+                        const count = catProducts.length;
+                        const totalProds = products.length || 1;
+                        const percentage = Math.round((count / totalProds) * 100);
+
+                        let colorClass = 'bg-[#c9b8a0]';
+                        let label = 'Nước Hoa Unisex';
+                        if (cat === 'Men') { colorClass = 'bg-[#8a7a6a]'; label = 'Nước Hoa Nam'; }
+                        if (cat === 'Women') { colorClass = 'bg-[#e3c2b0]'; label = 'Nước Hoa Nữ'; }
+
+                        return (
+                          <div key={cat} className="space-y-1.5">
+                            <div className="flex justify-between text-xs">
+                              <span className="font-medium text-[#2d2a26]">{label}</span>
+                              <span className="font-mono text-[#8a8480]">{count} sản phẩm ({percentage}%)</span>
+                            </div>
+                            <div className="w-full h-2 rounded-full bg-[#dbccb8]/20 overflow-hidden">
+                              <div className={`h-full rounded-full transition-all duration-1000 ${colorClass}`} style={{ width: `${percentage}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -532,6 +651,121 @@ export default function AdminPage() {
                 )}
               </div>
             )}
+            {/* 6. COUPONS TAB (MÃ GIẢ GIÁ CRUD) */}
+            {activeTab === 'coupons' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  {/* Left: Add Coupon Form */}
+                  <div className="lg:col-span-1 glass-strong p-6 rounded-2xl border border-[#dbccb8]/20 bg-white/40 backdrop-blur-md">
+                    <h3 className="text-base font-bold text-[#1a1a1a] mb-4">✨ Tạo Mã Giảm Giá Mới</h3>
+                    <form onSubmit={handleAddCoupon} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-[#5a5550] uppercase tracking-wider mb-1">Mã Code (In Hoa)</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Ví dụ: WINTER20"
+                          value={newCoupon.code}
+                          onChange={(e) => setNewCoupon({ ...newCoupon, code: e.target.value.toUpperCase() })}
+                          className="w-full px-4 py-2.5 rounded-xl border border-[#dbccb8]/30 focus:border-[#dbccb8] bg-[#fffaf6] text-sm outline-none transition-all text-[#1a1a1a]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[#5a5550] uppercase tracking-wider mb-1">Phần Trăm Chiết Khấu (%)</label>
+                        <input
+                          type="number"
+                          min="1"
+                          max="100"
+                          required
+                          value={newCoupon.discountPercent}
+                          onChange={(e) => setNewCoupon({ ...newCoupon, discountPercent: Number(e.target.value) })}
+                          className="w-full px-4 py-2.5 rounded-xl border border-[#dbccb8]/30 focus:border-[#dbccb8] bg-[#fffaf6] text-sm outline-none transition-all text-[#1a1a1a]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[#5a5550] uppercase tracking-wider mb-1">Ngày Hết Hạn</label>
+                        <input
+                          type="date"
+                          required
+                          value={newCoupon.expirationDate}
+                          onChange={(e) => setNewCoupon({ ...newCoupon, expirationDate: e.target.value })}
+                          className="w-full px-4 py-2.5 rounded-xl border border-[#dbccb8]/30 focus:border-[#dbccb8] bg-[#fffaf6] text-sm outline-none transition-all text-[#1a1a1a]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-[#5a5550] uppercase tracking-wider mb-1">Lượt Sử Dụng Tối Đa</label>
+                        <input
+                          type="number"
+                          min="1"
+                          required
+                          value={newCoupon.maxUses}
+                          onChange={(e) => setNewCoupon({ ...newCoupon, maxUses: Number(e.target.value) })}
+                          className="w-full px-4 py-2.5 rounded-xl border border-[#dbccb8]/30 focus:border-[#dbccb8] bg-[#fffaf6] text-sm outline-none transition-all text-[#1a1a1a]"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="w-full py-3 rounded-full bg-gradient-to-r from-[#dbccb8] to-[#c9b8a0] text-[#1a1a1a] hover:shadow-lg active:scale-95 transition-all text-sm font-semibold mt-2"
+                      >
+                        Thêm Mã Giảm Giá
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Right: Coupon List */}
+                  <div className="lg:col-span-2 space-y-4">
+                    <h3 className="text-lg font-bold text-[#1a1a1a]">Mã Khuyến Mãi Hiện Có ({coupons.length})</h3>
+                    <div className="glass-strong rounded-2xl overflow-hidden border border-[#dbccb8]/20 bg-white/40 backdrop-blur-md shadow-sm">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse text-sm">
+                          <thead>
+                            <tr className="bg-black/[0.02] border-b border-[#dbccb8]/10 text-[#8a8480] font-semibold">
+                              <th className="p-4">Mã Code</th>
+                              <th className="p-4 text-center">Giảm Giá</th>
+                              <th className="p-4">Ngày Hết Hạn</th>
+                              <th className="p-4 text-center">Lượt Dùng</th>
+                              <th className="p-4 text-center">Trạng Thế</th>
+                              <th className="p-4 text-center">Thao Tác</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#dbccb8]/10">
+                            {coupons.map((c) => (
+                              <tr key={c.id} className="hover:bg-black/[0.01] transition-all text-[#2d2a26]">
+                                <td className="p-4 font-mono font-bold text-[#1a1a1a]">{c.code}</td>
+                                <td className="p-4 text-center font-mono text-emerald-600 font-semibold">{c.discountPercent}%</td>
+                                <td className="p-4 font-mono">{c.expirationDate}</td>
+                                <td className="p-4 text-center font-mono">{c.usedCount} / {c.maxUses}</td>
+                                <td className="p-4 text-center">
+                                  <button
+                                    onClick={() => handleToggleCoupon(c.id)}
+                                    className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all active:scale-95 ${
+                                      c.active 
+                                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200' 
+                                        : 'bg-rose-100 text-rose-700 border-rose-200 hover:bg-rose-200'
+                                    }`}
+                                  >
+                                    {c.active ? 'Active' : 'Locked'}
+                                  </button>
+                                </td>
+                                <td className="p-4 text-center">
+                                  <button
+                                    onClick={() => handleDeleteCoupon(c.id)}
+                                    className="p-2 rounded-xl text-rose-600 hover:bg-rose-500/10 active:scale-90 transition-all"
+                                    title="Xóa mã"
+                                  >
+                                    <FiTrash2 />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -619,14 +853,23 @@ export default function AdminPage() {
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files[0];
                           if (file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setNewProduct({ ...newProduct, imageUrl: reader.result });
-                            };
-                            reader.readAsDataURL(file);
+                            try {
+                              const formData = new FormData();
+                              formData.append('file', file);
+                              showToast('Đang tải ảnh lên...', 'info');
+                              const res = await productAPI.uploadImage(formData);
+                              if (res && res.url) {
+                                setNewProduct({ ...newProduct, imageUrl: res.url });
+                                showToast('Tải ảnh thành công!', 'success');
+                              } else {
+                                showToast('Tải ảnh thất bại.', 'error');
+                              }
+                            } catch (err) {
+                              showToast('Lỗi khi tải ảnh lên.', 'error');
+                            }
                           }
                         }}
                         className="w-full text-xs text-[#8a8480] file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-[11px] file:font-semibold file:bg-[#dbccb8]/20 file:text-[#5a5550] hover:file:bg-[#dbccb8]/30 transition-all cursor-pointer"

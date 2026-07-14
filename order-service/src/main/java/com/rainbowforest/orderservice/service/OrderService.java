@@ -14,6 +14,7 @@ public interface OrderService {
 
     // Dành cho USER: lấy danh sách đơn hàng của chính họ
     public List<Order> getOrdersByUserName(String userName);
+    public List<Order> getOrdersByUserId(Long userId);
 
     // Kiểm tra quyền sở hữu: user có phải chủ của order này không?
     public boolean isOrderOwner(Long orderId, String userName);

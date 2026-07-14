@@ -1,10 +1,13 @@
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import { useToast } from './context/ToastContext';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import ProductPage from './pages/ProductPage';
 import CartPage from './pages/CartPage';
 import AdminPage from './pages/AdminPage';
+import ProfilePage from './pages/ProfilePage';
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -33,6 +36,34 @@ function PublicRoute({ children }) {
 }
 
 export default function App() {
+  const { user } = useAuth();
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    if (!user?.username) return;
+
+    // Connect to SSE stream via Gateway routing
+    const sseUrl = `http://localhost:8900/api/notification/stream?username=${user.username}`;
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.addEventListener("ORDER_STATUS", (e) => {
+      showToast(e.data, "success");
+    });
+
+    eventSource.addEventListener("INIT", (e) => {
+      console.log("SSE Init: ", e.data);
+    });
+
+    eventSource.onerror = (err) => {
+      console.warn("SSE connection error, closing stream: ", err);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [user]);
+
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
@@ -45,6 +76,11 @@ export default function App() {
       <Route path="/cart" element={
         <ProtectedRoute>
           <CartPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <ProfilePage />
         </ProtectedRoute>
       } />
       <Route path="/admin" element={

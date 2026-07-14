@@ -35,7 +35,8 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             "/api/accounts/register",
             "/api/accounts/registration",
             "/api/accounts/refresh",
-            "/api/accounts/logout"
+            "/api/accounts/logout",
+            "/api/shop/coupons/validate"
     );
 
     private static final String BLACKLIST_PREFIX = "blacklist:";

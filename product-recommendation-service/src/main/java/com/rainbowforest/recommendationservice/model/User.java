@@ -10,7 +10,6 @@ import java.util.List;
 public class User {
 
     @Id
-    @GeneratedValue (strategy = GenerationType.IDENTITY)
     private Long id;
     @Column (name = "user_name")
     private String userName;
@@ -19,6 +18,14 @@ public class User {
     @JsonIgnore
     private List<Recommendation> recomendations;
     
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public User() {
     	
     }

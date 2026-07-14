@@ -11,7 +11,7 @@ const BACKUP_IMAGES = {
   2: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=800&auto=format&fit=crop&q=80",
   3: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=800&auto=format&fit=crop&q=80",
   4: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=800&auto=format&fit=crop&q=80",
-  5: "https://images.unsplash.com/photo-1588405748373-122b2321bc31?w=800&auto=format&fit=crop&q=80"
+  5: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=800&auto=format&fit=crop&q=80"
 };
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1541643600914-78b084683601?w=800&auto=format&fit=crop&q=80";
 
@@ -27,13 +27,18 @@ export default function ProductPage() {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [recommendations, setRecommendations] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
   const { user } = useAuth();
   const { showToast } = useToast();
 
   useEffect(() => {
     loadProduct();
     loadRecommendations();
+    loadReviews();
   }, [id]);
 
   const loadProduct = async () => {
@@ -55,6 +60,35 @@ export default function ProductPage() {
       setRecommendations(data || []);
     } catch {
       // silently fail
+    }
+  };
+
+  const loadReviews = async () => {
+    try {
+      const data = await recommendationAPI.getByProduct(id);
+      setReviews(data || []);
+    } catch {
+      setReviews([]);
+    }
+  };
+
+  const submitReview = async (e) => {
+    e.preventDefault();
+    if (!user?.id) {
+      showToast('Vui lòng đăng nhập để viết đánh giá.', 'warning');
+      return;
+    }
+    setSubmittingReview(true);
+    try {
+      await recommendationAPI.addRecommendation(user.id, product.id, newRating, newComment);
+      showToast('Cảm ơn bạn đã chia sẻ đánh giá mùi hương! ✨');
+      setNewComment('');
+      setNewRating(5);
+      loadReviews();
+    } catch {
+      showToast('Không thể gửi đánh giá. Vui lòng thử lại.', 'error');
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -107,6 +141,9 @@ export default function ProductPage() {
 
   const imgUrl = product.imageUrl || BACKUP_IMAGES[product.id] || DEFAULT_IMAGE;
   const notes = SCENT_NOTES[product.id] || { top: "Hương trái cây tự nhiên", heart: "Hoa nhài, Hoa hồng", base: "Gỗ xạ hương, Hổ phách" };
+  const avgRating = reviews.length > 0
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+    : "0.0";
 
   return (
     <div className="min-h-screen bg-[#fffaf6] bg-grid pb-20">
@@ -126,7 +163,8 @@ export default function ProductPage() {
             <img
               src={imgUrl}
               alt={product.productName}
-              className="w-full h-auto max-h-[500px] object-cover grayscale opacity-95 hover:grayscale-0 transition-all duration-700"
+              className="w-full h-auto max-h-[500px] object-cover transition-all duration-700"
+              onError={(e) => { e.target.onerror = null; e.target.src = DEFAULT_IMAGE; }}
             />
           </div>
 
@@ -157,13 +195,14 @@ export default function ProductPage() {
               {/* Rating */}
               <div className="flex items-center gap-1.5 text-xs text-[#b8a690]">
                 <div className="flex text-amber-400">
-                  <FiStar className="fill-current" />
-                  <FiStar className="fill-current" />
-                  <FiStar className="fill-current" />
-                  <FiStar className="fill-current" />
-                  <FiStar />
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <FiStar
+                      key={star}
+                      className={star <= Math.round(Number(avgRating)) ? "fill-current" : ""}
+                    />
+                  ))}
                 </div>
-                <span className="font-mono ml-1">4.8 / 5.0 (28 reviews)</span>
+                <span className="font-mono ml-1">{avgRating} / 5.0 ({reviews.length} đánh giá)</span>
               </div>
 
               {/* Scent notes details (Editorial Style Spec Sheet) */}
@@ -211,6 +250,104 @@ export default function ProductPage() {
           </div>
         </div>
 
+        {/* Reviews Section */}
+        <div className="mt-20 border-t border-[#dbccb8]/20 pt-16">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            {/* Reviews List (7 Columns) */}
+            <div className="lg:col-span-7 space-y-6">
+              <h2 className="text-2xl font-light text-[#2d2a26] mb-6">
+                Đánh giá từ khách hàng ({reviews.length})
+              </h2>
+
+              {reviews.length === 0 ? (
+                <div className="py-10 text-center border border-dashed border-[#dbccb8]/30 rounded-2xl bg-[#fffaf6]/20">
+                  <p className="text-sm text-[#8a8480] font-light">Chưa có đánh giá nào cho sản phẩm này. Hãy là người đầu tiên chia sẻ cảm nhận!</p>
+                </div>
+              ) : (
+                <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
+                  {reviews.map((rev) => (
+                    <div key={rev.id} className="glass-strong rounded-2xl p-5 border border-[#dbccb8]/10">
+                      <div className="flex items-center justify-between gap-4 mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-[#dbccb8]/40 flex items-center justify-center text-[#2d2a26] text-xs font-semibold">
+                            {rev.user?.userName?.charAt(0).toUpperCase() || 'U'}
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-[#2d2a26] block">{rev.user?.userName}</span>
+                            <span className="text-[10px] text-[#8a8480] font-mono">Khách hàng Aroma</span>
+                          </div>
+                        </div>
+
+                        <div className="flex text-amber-400 text-xs">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <FiStar key={s} className={s <= rev.rating ? "fill-current" : ""} />
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-xs text-[#5a5550] leading-relaxed font-light pl-11">
+                        {rev.comment || "Sản phẩm tuyệt vời! Mùi hương lưu lâu, quyến rũ và rất tinh tế."}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Write Review Form (5 Columns) */}
+            <div className="lg:col-span-5">
+              <div className="glass-strong rounded-3xl p-6 border border-[#dbccb8]/20 sticky top-28">
+                <h3 className="text-lg font-semibold text-[#2d2a26] mb-4">Chia sẻ cảm nhận của bạn</h3>
+                {user ? (
+                  <form onSubmit={submitReview} className="space-y-4">
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#5a5550] mb-2">Đánh giá của bạn</label>
+                      <div className="flex gap-2 text-xl text-[#b8a690]">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setNewRating(star)}
+                            className="transition-transform hover:scale-110 active:scale-95"
+                          >
+                            <FiStar className={star <= newRating ? "text-amber-400 fill-current" : ""} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-[#5a5550] mb-1.5">Bình luận về mùi hương</label>
+                      <textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        required
+                        rows="4"
+                        className="w-full px-4 py-3 rounded-2xl border border-[#dbccb8]/40 bg-[#fffaf6]/50 focus:outline-none focus:border-[#2d2a26] transition-all text-xs text-[#2d2a26] leading-relaxed resize-none"
+                        placeholder="Hãy chia sẻ cảm nhận thực tế của bạn về nốt hương, độ lưu hương và thiết kế của chai nước hoa này..."
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={submittingReview}
+                      className="w-full py-3.5 rounded-full bg-[#1a1a1a] hover:bg-[#2d2a26] text-[#fffaf6] text-xs font-mono uppercase tracking-widest transition-all disabled:opacity-50 active:scale-[0.98]"
+                    >
+                      {submittingReview ? "ĐANG GỬI..." : "GỬI ĐÁNH GIÁ"}
+                    </button>
+                  </form>
+                ) : (
+                  <div className="text-center py-6 space-y-4">
+                    <p className="text-xs text-[#8a8480] leading-relaxed font-light">Vui lòng đăng nhập tài khoản của bạn để viết bình luận và gửi đánh giá cho chai nước hoa này.</p>
+                    <Link to="/login" className="inline-block w-full py-3 rounded-full border border-[#1a1a1a] hover:bg-[#1a1a1a] hover:text-[#fffaf6] text-[#1a1a1a] text-xs font-mono uppercase tracking-widest transition-all text-center">
+                      ĐĂNG NHẬP NGAY
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Recommendations Section (Minimalist Grid Row) */}
         {recommendations.length > 0 && (
           <div className="mt-20">
@@ -229,7 +366,8 @@ export default function ProductPage() {
                       <img
                         src={BACKUP_IMAGES[rec.id] || DEFAULT_IMAGE}
                         alt={rec.productName}
-                        className="w-full h-full object-cover grayscale opacity-90 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
+                        onError={(e) => { e.target.onerror = null; e.target.src = DEFAULT_IMAGE; }}
                       />
                     </div>
                     <p className="text-sm font-light text-[#2d2a26] group-hover:italic transition-all duration-300 leading-snug">{rec.productName}</p>

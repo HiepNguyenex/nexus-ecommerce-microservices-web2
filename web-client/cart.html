@@ -117,7 +117,7 @@
             cartItems.forEach(item => {
                 const product = item.product;
                 const prodId = product.id || product.productId;
-                const imgUrl = backupImages[prodId] || defaultImage;
+                const imgUrl = product.imageUrl || backupImages[prodId] || defaultImage;
                 const price = product.price;
                 const quantity = item.quantity;
                 const subTotal = price * quantity;

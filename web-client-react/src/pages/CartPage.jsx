@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { cartAPI, orderAPI } from '../services/api';
+import { cartAPI, orderAPI, couponAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import Navbar from '../components/Navbar';
@@ -11,7 +11,7 @@ const BACKUP_IMAGES = {
   2: "https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=200&auto=format&fit=crop&q=60",
   3: "https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=200&auto=format&fit=crop&q=60",
   4: "https://images.unsplash.com/photo-1594035910387-fea47794261f?w=200&auto=format&fit=crop&q=60",
-  5: "https://images.unsplash.com/photo-1588405748373-122b2321bc31?w=200&auto=format&fit=crop&q=60"
+  5: "https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&auto=format&fit=crop&q=60"
 };
 const DEFAULT_IMAGE = "https://images.unsplash.com/photo-1541643600914-78b084683601?w=200&auto=format&fit=crop&q=60";
 
@@ -19,6 +19,10 @@ export default function CartPage() {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [ordering, setOrdering] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [discountPercent, setDiscountPercent] = useState(0);
+  const [appliedPromo, setAppliedPromo] = useState('');
+  const [promoError, setPromoError] = useState('');
   const { user } = useAuth();
   const { showToast } = useToast();
 
@@ -38,13 +42,15 @@ export default function CartPage() {
     }
   };
 
-  const updateQuantity = async (itemId, newQty) => {
+  const updateQuantity = async (item, newQty) => {
     if (newQty < 1) return;
+    const prodId = item.product?.productId || item.product?.id;
+    if (!prodId) return;
     try {
-      await cartAPI.updateQuantity(itemId, newQty);
+      await cartAPI.addItem(prodId, newQty);
       setCartItems((prev) =>
-        prev.map((item) =>
-          item.id === itemId ? { ...item, quantity: newQty } : item
+        prev.map((it) =>
+          it.id === item.id ? { ...it, quantity: newQty } : it
         )
       );
     } catch {
@@ -52,14 +58,38 @@ export default function CartPage() {
     }
   };
 
-  const removeItem = async (itemId) => {
+  const removeItem = async (item) => {
+    const prodId = item.product?.productId || item.product?.id;
+    if (!prodId) return;
     try {
-      await cartAPI.removeItem(itemId);
-      setCartItems((prev) => prev.filter((item) => item.id !== itemId));
+      await cartAPI.removeItem(prodId);
+      setCartItems((prev) => prev.filter((it) => it.id !== item.id));
       showToast('Đã xóa sản phẩm khỏi giỏ hàng.');
     } catch {
       showToast('Không thể xóa sản phẩm.', 'error');
     }
+  };
+
+  const applyPromo = async () => {
+    setPromoError('');
+    if (!promoCode.trim()) return;
+    try {
+      const res = await couponAPI.validate(promoCode.trim());
+      setDiscountPercent(res.discountPercent);
+      setAppliedPromo(res.code);
+      showToast(`Đã áp dụng mã giảm giá ${res.discountPercent}% cho đơn hàng! 🏷️`);
+    } catch (err) {
+      setPromoError(err.response?.data?.error || 'Mã giảm giá không hợp lệ hoặc đã hết hạn.');
+      setDiscountPercent(0);
+      setAppliedPromo('');
+    }
+  };
+
+  const removePromo = () => {
+    setPromoCode('');
+    setDiscountPercent(0);
+    setAppliedPromo('');
+    setPromoError('');
   };
 
   const placeOrder = async () => {
@@ -69,9 +99,12 @@ export default function CartPage() {
     }
     setOrdering(true);
     try {
-      await orderAPI.createOrder(user.id);
+      await orderAPI.createOrder(user.id, appliedPromo);
       showToast('Đặt túi hương thành công! 🎉');
       setCartItems([]);
+      setAppliedPromo('');
+      setPromoCode('');
+      setDiscountPercent(0);
     } catch {
       showToast('Không thể tiến hành đặt hàng. Vui lòng thử lại.', 'error');
     } finally {
@@ -80,6 +113,8 @@ export default function CartPage() {
   };
 
   const total = cartItems.reduce((sum, item) => sum + (item.product?.price || 0) * (item.quantity || 1), 0);
+  const discountAmount = total * (discountPercent / 100);
+  const finalTotal = total - discountAmount;
 
   if (!user) {
     return (
@@ -147,7 +182,7 @@ export default function CartPage() {
                   <img
                     src={item.product?.imageUrl || BACKUP_IMAGES[item.product?.id] || DEFAULT_IMAGE}
                     alt={item.product?.productName}
-                    className="w-16 h-16 object-cover border border-[#dbccb8]/20 grayscale hover:grayscale-0 transition-all duration-300 flex-shrink-0"
+                    className="w-16 h-16 object-cover border border-[#dbccb8]/20 transition-all duration-300 flex-shrink-0"
                   />
                   <div className="flex-1 min-w-0">
                     <h3 className="font-light text-[#2d2a26] text-base truncate">
@@ -161,7 +196,7 @@ export default function CartPage() {
                   {/* Quantity Controls (Minimalist styling) */}
                   <div className="flex items-center border border-[#dbccb8]/30">
                     <button
-                      onClick={() => updateQuantity(item.id, (item.quantity || 1) - 1)}
+                      onClick={() => updateQuantity(item, (item.quantity || 1) - 1)}
                       className="w-8 h-8 flex items-center justify-center text-[#8a8480] hover:text-[#1a1a1a] hover:bg-[#dbccb8]/10 transition-all"
                     >
                       <FiMinus className="text-[10px]" />
@@ -170,7 +205,7 @@ export default function CartPage() {
                       {item.quantity || 1}
                     </span>
                     <button
-                      onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
+                      onClick={() => updateQuantity(item, (item.quantity || 1) + 1)}
                       className="w-8 h-8 flex items-center justify-center text-[#8a8480] hover:text-[#1a1a1a] hover:bg-[#dbccb8]/10 transition-all"
                     >
                       <FiPlus className="text-[10px]" />
@@ -183,7 +218,7 @@ export default function CartPage() {
                   </div>
                   
                   <button
-                    onClick={() => removeItem(item.id)}
+                    onClick={() => removeItem(item)}
                     className="p-2 text-[#b8a690] hover:text-rose-500 transition-all ml-2"
                     title="Xóa khỏi giỏ"
                   >
@@ -195,28 +230,76 @@ export default function CartPage() {
 
             {/* Right: Order Summary Box (Minimalist Outline) */}
             <div className="lg:col-span-1">
-              <div className="border border-[#dbccb8]/30 bg-[#fffaf6] p-6 sticky top-28">
-                <h3 className="text-xs font-mono uppercase tracking-[0.25em] text-[#b8a690] mb-6">Tóm tắt đơn hàng</h3>
-                <div className="space-y-4 text-xs font-light">
-                  <div className="flex justify-between text-[#8a8480]">
-                    <span>Tạm tính</span>
-                    <span className="font-mono">${total.toFixed(2)}</span>
+              <div className="border border-[#dbccb8]/30 bg-[#fffaf6] p-6 sticky top-28 space-y-6">
+                <div>
+                  <h3 className="text-xs font-mono uppercase tracking-[0.25em] text-[#b8a690] mb-6">Tóm tắt đơn hàng</h3>
+                  <div className="space-y-4 text-xs font-light">
+                    <div className="flex justify-between text-[#8a8480]">
+                      <span>Tạm tính</span>
+                      <span className="font-mono">${total.toFixed(2)}</span>
+                    </div>
+
+                    {appliedPromo && (
+                      <div className="flex justify-between text-[#c99a8a]">
+                        <span>Mã giảm giá ({appliedPromo})</span>
+                        <span className="font-mono">-${discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between text-[#8a8480]">
+                      <span>Vận chuyển toàn quốc</span>
+                      <span className="font-mono text-[#a8c5a0] uppercase tracking-wider">MIỄN PHÍ</span>
+                    </div>
+                    
+                    <div className="border-t border-[#dbccb8]/20 pt-4 flex justify-between text-base font-normal">
+                      <span className="text-[#2d2a26]">Tổng cộng</span>
+                      <span className="font-mono text-lg font-semibold text-[#1a1a1a]">${finalTotal.toFixed(2)}</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-[#8a8480]">
-                    <span>Vận chuyển toàn quốc</span>
-                    <span className="font-mono text-[#a8c5a0] uppercase tracking-wider">MIỄN PHÍ</span>
-                  </div>
-                  
-                  <div className="border-t border-[#dbccb8]/20 pt-4 flex justify-between text-base font-normal">
-                    <span className="text-[#2d2a26]">Tổng cộng</span>
-                    <span className="font-mono text-lg font-semibold text-[#1a1a1a]">${total.toFixed(2)}</span>
-                  </div>
+                </div>
+
+                {/* Promo Code Input */}
+                <div className="border-t border-[#dbccb8]/20 pt-6">
+                  <h4 className="text-[10px] font-mono uppercase tracking-wider text-[#8a8480] mb-2">Mã giảm giá / Quà tặng</h4>
+                  {appliedPromo ? (
+                    <div className="flex items-center justify-between p-3.5 bg-[#a8c5a0]/5 rounded-xl border border-[#a8c5a0]/20">
+                      <div>
+                        <span className="block text-[11px] font-semibold text-emerald-800">ĐÃ ÁP DỤNG: {appliedPromo}</span>
+                        {discountPercent > 0 && <span className="text-[10px] text-emerald-600 font-mono">Giảm {discountPercent}% trên tổng đơn</span>}
+                      </div>
+                      <button 
+                        onClick={removePromo}
+                        className="text-xs text-rose-500 hover:text-rose-700 font-semibold transition-colors"
+                      >
+                        Gỡ bỏ
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value)}
+                          className="flex-grow px-3 py-2 text-xs rounded-lg border border-[#dbccb8]/40 bg-white focus:outline-none focus:border-[#2d2a26] font-mono"
+                          placeholder="Nhập mã (Ví dụ: PERFUME10)"
+                        />
+                        <button
+                          onClick={applyPromo}
+                          className="px-4 py-2 bg-[#2d2a26] text-[#fffaf6] hover:bg-[#1a1a1a] rounded-lg text-xs font-mono transition-all"
+                        >
+                          ÁP DỤNG
+                        </button>
+                      </div>
+                      {promoError && <p className="text-[10px] text-rose-500">{promoError}</p>}
+                    </div>
+                  )}
                 </div>
                 
                 <button
                   onClick={placeOrder}
                   disabled={ordering || cartItems.length === 0}
-                  className="w-full mt-8 py-4 bg-[#1a1a1a] text-[#fffaf6] hover:bg-[#2d2a26] transition-all text-xs font-mono uppercase tracking-[0.25em] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center"
+                  className="w-full py-4 bg-[#1a1a1a] text-[#fffaf6] hover:bg-[#2d2a26] transition-all text-xs font-mono uppercase tracking-[0.25em] active:scale-[0.98] disabled:opacity-50 flex items-center justify-center"
                 >
                   {ordering ? (
                     <div className="w-5 h-5 border-2 border-[#fffaf6]/20 border-t-[#fffaf6] rounded-full animate-spin" />

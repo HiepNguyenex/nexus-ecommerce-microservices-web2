@@ -15,7 +15,7 @@ Write-Host "User token acquired successfully!"
 # 2. Add product to cart
 $headers = @{
     "Authorization" = "Bearer $userToken"
-    "Cookie" = "JSESSIONID=testsession123"
+    "Cookie" = "JSESSIONID=testsession_$(Get-Random)"
 }
 
 Write-Host "Adding product 1 (Smartphone Galaxy S21) to cart..."

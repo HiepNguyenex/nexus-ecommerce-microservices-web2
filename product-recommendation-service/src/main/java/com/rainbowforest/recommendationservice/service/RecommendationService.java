@@ -7,6 +7,7 @@ public interface RecommendationService {
 	Recommendation getRecommendationById(Long recommendationId);
     Recommendation saveRecommendation(Recommendation recommendation);
     List<Recommendation> getAllRecommendationByProductName(String productName);
+    List<Recommendation> getAllRecommendationByProductId(Long productId);
     List<Recommendation> getAllRecommendations();
     void deleteRecommendation(Long id);
 }

@@ -22,6 +22,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // Tìm đơn hàng theo username của user (dùng để kiểm tra quyền sở hữu)
     List<Order> findByUserUserName(String userName);
 
+    // Tìm đơn hàng theo userId
+    List<Order> findByUserId(Long userId);
+
     // Tìm đơn hàng theo ID và username cùng lúc (kiểm tra sở hữu nhanh)
     Optional<Order> findByIdAndUserUserName(Long id, String userName);
 

@@ -20,7 +20,7 @@
     <!-- Hero Section -->
     <header style="padding: 5rem 5% 3rem 5%; text-align: center; max-width: 800px; margin: 0 auto;">
         <h1 style="font-size: 3.5rem; font-weight: 800; margin-bottom: 1rem; line-height: 1.2;">Chào mừng đến với <span style="background: var(--primary-grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Rainbow Forest</span></h1>
-        <p style="color: var(--text-secondary); font-size: 1.2rem; margin-bottom: 2rem;">Khám phá các sản phẩm công nghệ, thời trang và sách với chất lượng hàng đầu và dịch vụ thanh toán nhanh chóng.</p>
+        <p style="color: var(--text-secondary); font-size: 1.2rem; margin-bottom: 2rem;">Khám phá các dòng nước hoa Unisex, Nước hoa Nữ, và Nước hoa Nam chính hãng cao cấp từ những thương hiệu hàng đầu thế giới.</p>
         <div class="form-group" style="max-width: 500px; margin: 0 auto;">
             <input type="text" id="search-input" class="form-control" placeholder="Tìm kiếm sản phẩm nhanh..." onkeyup="filterProducts()">
         </div>
@@ -30,9 +30,9 @@
         <!-- Categories Filter -->
         <div class="filter-bar" id="category-filters">
             <button class="filter-btn active" onclick="selectCategory('All')">Tất Cả</button>
-            <button class="filter-btn" onclick="selectCategory('Electronics')">Công Nghệ</button>
-            <button class="filter-btn" onclick="selectCategory('Clothing')">Thời Trang</button>
-            <button class="filter-btn" onclick="selectCategory('Books')">Sách</button>
+            <button class="filter-btn" onclick="selectCategory('Unisex')">Unisex</button>
+            <button class="filter-btn" onclick="selectCategory('Women')">Nước Hoa Nữ</button>
+            <button class="filter-btn" onclick="selectCategory('Men')">Nước Hoa Nam</button>
         </div>
 
         <!-- Products Grid -->
@@ -95,7 +95,7 @@
             }
 
             filtered.forEach(product => {
-                const imgUrl = backupImages[product.id] || defaultImage;
+                const imgUrl = product.imageUrl || backupImages[product.id] || defaultImage;
                 const card = document.createElement('div');
                 card.className = 'product-card';
                 card.onclick = (e) => {
@@ -127,12 +127,17 @@
             // Toggle active class on buttons
             const buttons = document.querySelectorAll('#category-filters .filter-btn');
             buttons.forEach(btn => {
-                if (btn.innerText.includes(category === 'All' ? 'Tất Cả' : category === 'Electronics' ? 'Công Nghệ' : category === 'Clothing' ? 'Thời Trang' : 'Sách')) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
+                btn.classList.remove('active');
             });
+
+            const targetBtn = Array.from(buttons).find(btn => {
+                if (category === 'All' && btn.innerText.includes('Tất Cả')) return true;
+                if (category === 'Unisex' && btn.innerText.includes('Unisex')) return true;
+                if (category === 'Women' && btn.innerText.includes('Nữ')) return true;
+                if (category === 'Men' && btn.innerText.includes('Nam')) return true;
+                return false;
+            });
+            if (targetBtn) targetBtn.classList.add('active');
 
             renderProducts();
         }
@@ -166,7 +171,7 @@
             const grid = document.getElementById('products-list');
             grid.innerHTML = '';
             filteredList.forEach(product => {
-                const imgUrl = backupImages[product.id] || defaultImage;
+                const imgUrl = product.imageUrl || backupImages[product.id] || defaultImage;
                 const card = document.createElement('div');
                 card.className = 'product-card';
                 card.onclick = (e) => {

@@ -5,12 +5,12 @@ Write-Host "==========================================================" -Foregro
 Write-Host "  STOPPING ALL MICROSERVICES + WEB CLIENT" -ForegroundColor Yellow
 Write-Host "==========================================================" -ForegroundColor Yellow
 
-$javaCount = (Get-Process -Name java -ErrorAction SilentlyContinue).Count
-if ($javaCount -gt 0) {
-    Get-Process -Name java -ErrorAction SilentlyContinue | Stop-Process -Force
-    Write-Host "  Stopped $javaCount java process(es)" -ForegroundColor Green
+$javaProcs = Get-Process -Name java -ErrorAction SilentlyContinue | Where-Object { $_.Path -notlike "*antigravity*" -and $_.Path -notlike "*redhat.java*" }
+if ($javaProcs) {
+    $javaProcs | Stop-Process -Force
+    Write-Host "  Stopped $($javaProcs.Count) java process(es)" -ForegroundColor Green
 } else {
-    Write-Host "  No java process running" -ForegroundColor Cyan
+    Write-Host "  No Java microservice process running" -ForegroundColor Cyan
 }
 
 $pyProcs = Get-Process -Name python -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*Python312*" }
