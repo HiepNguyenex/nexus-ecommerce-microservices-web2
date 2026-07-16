@@ -17,4 +17,6 @@ public interface ProductClient {
     @GetMapping(value = "/products/{id}")
     Product getProductById(@PathVariable(value = "id") Long productId);
 
+    @GetMapping(value = "/products/{id}")
+    java.util.Map<String, Object> getRawProductById(@PathVariable(value = "id") Long productId);
 }

@@ -108,8 +108,11 @@ export const authAPI = {
   logout: (accessToken) =>
     api.post('/accounts/logout', { accessToken }),
   getUsers: () => api.get('/accounts/users'),
+  getUser: (id) => api.get(`/accounts/users/${id}`),
   toggleUserStatus: (id, active) =>
     api.put(`/accounts/users/${id}/status?active=${active}`),
+  updateDetails: (id, details) =>
+    api.put(`/accounts/users/${id}/details`, details),
 };
 
 // Product APIs
@@ -120,6 +123,7 @@ export const productAPI = {
     }
     return api.get('/catalog/products');
   },
+  getOne: (id) => api.get(`/catalog/products/${id}`),
   addProduct: (product) => api.post('/catalog/admin/products', product),
   deleteProduct: (id) => api.delete(`/catalog/admin/products/${id}`),
   uploadImage: (formData) => api.post('/catalog/admin/products/upload', formData, {
@@ -132,15 +136,16 @@ export const productAPI = {
 // Cart APIs
 export const cartAPI = {
   getCart: () => api.get('/shop/cart'),
-  addItem: (productId, quantity = 1) =>
-    api.post(`/shop/cart?productId=${productId}&quantity=${quantity}`),
-  removeItem: (productId) =>
-    api.delete(`/shop/cart?productId=${productId}`),
+  addItem: (productId, quantity = 1, size = '100ml') =>
+    api.post(`/shop/cart?productId=${productId}&quantity=${quantity}&size=${size}`),
+  removeItem: (productId, size = '100ml') =>
+    api.delete(`/shop/cart?productId=${productId}&size=${size}`),
 };
 
 // Coupon APIs
 export const couponAPI = {
   validate: (code) => api.get(`/shop/coupons/validate?code=${encodeURIComponent(code)}`),
+  getActive: () => api.get('/shop/coupons/active'),
   getAll: () => api.get('/shop/admin/coupons'),
   add: (coupon) => api.post('/shop/admin/coupons', coupon),
   delete: (id) => api.delete(`/shop/admin/coupons/${id}`),
@@ -149,14 +154,31 @@ export const couponAPI = {
 
 // Order APIs
 export const orderAPI = {
-  createOrder: (userId, promoCode) =>
-    api.post(`/shop/order/${userId}${promoCode ? `?promoCode=${encodeURIComponent(promoCode)}` : ''}`),
+  createOrder: (userId, promoCode, shippingDetails = {}) => {
+    const params = new URLSearchParams();
+    if (promoCode) params.append('promoCode', promoCode);
+    if (shippingDetails.fullName) params.append('shippingName', shippingDetails.fullName);
+    if (shippingDetails.phone) params.append('shippingPhone', shippingDetails.phone);
+    if (shippingDetails.email) params.append('shippingEmail', shippingDetails.email);
+    if (shippingDetails.address) params.append('shippingAddress', shippingDetails.address);
+    if (shippingDetails.paymentMethod) params.append('paymentMethod', shippingDetails.paymentMethod);
+    const query = params.toString();
+    return api.post(`/shop/order/${userId}${query ? `?${query}` : ''}`);
+  },
   getAll: () => api.get('/shop/orders'),
   getMyOrders: () => api.get('/shop/orders/my'),
   getByUserId: (userId) => api.get(`/shop/orders/user/${userId}`),
   getById: (orderId) => api.get(`/shop/orders/${orderId}`),
   updateStatus: (orderId, status) =>
     api.put(`/shop/orders/${orderId}/status?status=${status}`),
+};
+
+// Payment APIs
+export const paymentAPI = {
+  createStripeSession: (orderId, amount, successUrl, cancelUrl) =>
+    api.post('/payment/stripe/create-session', { orderId, amount, successUrl, cancelUrl }),
+  confirmPayment: (orderId) =>
+    api.post(`/payment/stripe/confirm-payment?orderId=${orderId}`),
 };
 
 // Recommendation APIs

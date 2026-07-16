@@ -8,6 +8,8 @@ import ProductPage from './pages/ProductPage';
 import CartPage from './pages/CartPage';
 import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
+import ScentFinderPage from './pages/ScentFinderPage';
+import WishlistPage from './pages/WishlistPage';
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -73,6 +75,7 @@ export default function App() {
         </PublicRoute>
       } />
       <Route path="/product/:id" element={<ProductPage />} />
+      <Route path="/scent-finder" element={<ScentFinderPage />} />
       <Route path="/cart" element={
         <ProtectedRoute>
           <CartPage />
@@ -83,6 +86,7 @@ export default function App() {
           <ProfilePage />
         </ProtectedRoute>
       } />
+      <Route path="/wishlist" element={<WishlistPage />} />
       <Route path="/admin" element={
         <ProtectedRoute adminOnly>
           <AdminPage />

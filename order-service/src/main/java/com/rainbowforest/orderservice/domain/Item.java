@@ -29,6 +29,9 @@ public class Item {
     @JoinColumn (name = "product_id")
     private Product product;
 
+    @Column(name = "selected_size")
+    private String selectedSize;
+
     @ManyToMany (mappedBy = "items")
     @JsonIgnore
     private List<Order> orders;
@@ -41,6 +44,13 @@ public class Item {
         this.quantity = quantity;
         this.product = product;
         this.subTotal = subTotal;
+    }
+
+    public Item(@NotNull int quantity, Product product, BigDecimal subTotal, String selectedSize) {
+        this.quantity = quantity;
+        this.product = product;
+        this.subTotal = subTotal;
+        this.selectedSize = selectedSize;
     }
 
 	public Long getId() {
@@ -73,6 +83,14 @@ public class Item {
 
 	public void setProduct(Product product) {
 		this.product = product;
+	}
+
+	public String getSelectedSize() {
+		return selectedSize;
+	}
+
+	public void setSelectedSize(String selectedSize) {
+		this.selectedSize = selectedSize;
 	}
 
 	public List<Order> getOrders() {

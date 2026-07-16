@@ -14,5 +14,6 @@ public class OrderCreatedEvent {
     private Long userId;
     private BigDecimal total;
     private String status;
+    private String paymentMethod;
     private List<OrderItemInfo> items;
 }

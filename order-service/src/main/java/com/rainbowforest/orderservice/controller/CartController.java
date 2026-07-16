@@ -47,10 +47,11 @@ public class CartController {
     			HttpStatus.NOT_FOUND);  
     }
 
-    @PostMapping(value = "/cart", params = {"productId", "quantity"})
+    @PostMapping(value = "/cart")
     public ResponseEntity<List<Object>> addItemToCart(
             @RequestParam("productId") Long productId,
             @RequestParam("quantity") Integer quantity,
+            @RequestParam(value = "size", required = false, defaultValue = "100ml") String size,
             @RequestHeader(value = "X-User-Name", required = false) String userName,
             @RequestHeader(value = "Cookie", required = false) String cookieId,
             HttpServletRequest request) {
@@ -63,12 +64,12 @@ public class CartController {
         List<Object> cart = cartService.getCart(cartId);
         if(cart != null) {
         	if(cart.isEmpty()){
-        		cartService.addItemToCart(cartId, productId, quantity);
+        		cartService.addItemToCart(cartId, productId, quantity, size);
         	}else{
-        		if(cartService.checkIfItemIsExist(cartId, productId)){
-        			cartService.changeItemQuantity(cartId, productId, quantity);
+        		if(cartService.checkIfItemIsExist(cartId, productId, size)){
+        			cartService.changeItemQuantity(cartId, productId, quantity, size);
         		}else {
-        			cartService.addItemToCart(cartId, productId, quantity);
+        			cartService.addItemToCart(cartId, productId, quantity, size);
         		}
         	}
         	return new ResponseEntity<List<Object>>(
@@ -81,9 +82,10 @@ public class CartController {
         		HttpStatus.BAD_REQUEST);
     }
 
-    @DeleteMapping(value = "/cart", params = "productId")
+    @DeleteMapping(value = "/cart")
     public ResponseEntity<Void> removeItemFromCart(
             @RequestParam("productId") Long productId,
+            @RequestParam(value = "size", required = false, defaultValue = "100ml") String size,
             @RequestHeader(value = "X-User-Name", required = false) String userName,
             @RequestHeader(value = "Cookie", required = false) String cookieId){
         String cartId = resolveCartId(userName, cookieId);
@@ -92,7 +94,7 @@ public class CartController {
         }
     	List<Object> cart = cartService.getCart(cartId);
     	if(cart != null) {
-    		cartService.deleteItemFromCart(cartId, productId);
+    		cartService.deleteItemFromCart(cartId, productId, size);
             return new ResponseEntity<Void>(
             		headerGenerator.getHeadersForSuccessGetMethod(),
             		HttpStatus.OK);

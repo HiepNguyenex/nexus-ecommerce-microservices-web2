@@ -23,8 +23,9 @@ import java.util.ArrayList;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import com.rainbowforest.orderservice.domain.Coupon;
 import com.rainbowforest.orderservice.repository.CouponRepository;
+import com.rainbowforest.orderservice.repository.UserRepository;
+import com.rainbowforest.orderservice.domain.Coupon;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
@@ -49,18 +50,28 @@ public class OrderController {
 
     @Autowired
     private OrderProducer orderProducer;
+
+    @Autowired
+    private UserRepository userRepository;
     
     @PostMapping(value = "/order/{userId}")
     public ResponseEntity<Order> saveOrder(
     		@PathVariable("userId") Long userId,
     		@RequestParam(value = "promoCode", required = false) String promoCode,
+    		@RequestParam(value = "shippingName", required = false) String shippingName,
+    		@RequestParam(value = "shippingPhone", required = false) String shippingPhone,
+    		@RequestParam(value = "shippingEmail", required = false) String shippingEmail,
+    		@RequestParam(value = "shippingAddress", required = false) String shippingAddress,
+    		@RequestParam(value = "paymentMethod", required = false) String paymentMethod,
     		@RequestHeader(value = "Cookie") String cartId,
     		HttpServletRequest request){
     	
         List<Item> cart = cartService.getAllItemsFromCart(cartId);
         User user = userClient.getUserById(userId);   
         if(cart != null && user != null) {
-        	Order order = this.createOrder(cart, user, promoCode);
+            // Đảm bảo user được đồng bộ/lưu ở database cục bộ của order-service
+            user = userRepository.save(user);
+        	Order order = this.createOrder(cart, user, promoCode, shippingName, shippingPhone, shippingEmail, shippingAddress, paymentMethod);
         	try{
                 orderService.saveOrder(order);
                 cartService.deleteCart(cartId);
@@ -77,6 +88,7 @@ public class OrderController {
                             user.getId() != null ? user.getId() : userId,
                             order.getTotal(),
                             order.getStatus(),
+                            order.getPaymentMethod(),
                             itemInfos
                     );
                     orderProducer.sendOrderCreatedEvent(event);
@@ -132,29 +144,19 @@ public class OrderController {
             orders = orderService.getOrdersByUserName(userName);
         }
 
-        if (!orders.isEmpty()) {
-            return new ResponseEntity<List<Order>>(
-                    orders,
-                    headerGenerator.getHeadersForSuccessGetMethod(),
-                    HttpStatus.OK);
-        }
         return new ResponseEntity<List<Order>>(
-                headerGenerator.getHeadersForError(),
-                HttpStatus.NOT_FOUND);
+                orders != null ? orders : new ArrayList<>(),
+                headerGenerator.getHeadersForSuccessGetMethod(),
+                HttpStatus.OK);
     }
 
     @GetMapping(value = "/orders/my")
     public ResponseEntity<List<Order>> getMyOrders(@RequestHeader("X-User-Name") String userName) {
         List<Order> orders = orderService.getOrdersByUserName(userName);
-        if (!orders.isEmpty()) {
-            return new ResponseEntity<List<Order>>(
-                    orders,
-                    headerGenerator.getHeadersForSuccessGetMethod(),
-                    HttpStatus.OK);
-        }
         return new ResponseEntity<List<Order>>(
-                headerGenerator.getHeadersForError(),
-                HttpStatus.NOT_FOUND);
+                orders != null ? orders : new ArrayList<>(),
+                headerGenerator.getHeadersForSuccessGetMethod(),
+                HttpStatus.OK);
     }
 
     @GetMapping(value = "/orders/user/{userId}")
@@ -166,15 +168,10 @@ public class OrderController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
         List<Order> orders = orderService.getOrdersByUserId(userId);
-        if (!orders.isEmpty()) {
-            return new ResponseEntity<List<Order>>(
-                    orders,
-                    headerGenerator.getHeadersForSuccessGetMethod(),
-                    HttpStatus.OK);
-        }
         return new ResponseEntity<List<Order>>(
-                headerGenerator.getHeadersForError(),
-                HttpStatus.NOT_FOUND);
+                orders != null ? orders : new ArrayList<>(),
+                headerGenerator.getHeadersForSuccessGetMethod(),
+                HttpStatus.OK);
     }
 
     /**
@@ -211,18 +208,36 @@ public class OrderController {
     public ResponseEntity<Order> updateOrderStatus(
             @PathVariable("id") Long id,
             @RequestParam("status") String status,
-            @RequestHeader("X-User-Name") String userName,
-            @RequestHeader("X-User-Roles") String roles) {
-        // Cập nhật trạng thái yêu cầu ADMIN
-        if (!roles.contains("ROLE_ADMIN")) {
+            @RequestHeader(value = "X-User-Name", required = false) String userName,
+            @RequestHeader(value = "X-User-Roles", required = false) String roles) {
+        
+        Order order = orderService.getOrderById(id);
+        if (order == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        boolean isAdmin = roles != null && roles.contains("ROLE_ADMIN");
+        boolean isOwner = order.getUser() != null && userName != null && userName.equals(order.getUser().getUserName());
+
+        // Nếu không phải admin và cũng không phải chủ nhân đơn hàng
+        if (!isAdmin && !isOwner) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        Order order = orderService.getOrderById(id);
-        if (order != null) {
-            String previousStatus = order.getStatus();
-            order.setStatus(status);
-            try {
-                orderService.saveOrder(order);
+
+        // Khách hàng tự hủy đơn: chỉ được hủy khi trạng thái là PAYMENT_EXPECTED và đổi thành CANCELLED
+        if (!isAdmin && isOwner) {
+            if (!"CANCELLED".equalsIgnoreCase(status)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+            if (!"PAYMENT_EXPECTED".equalsIgnoreCase(order.getStatus())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+        }
+
+        String previousStatus = order.getStatus();
+        order.setStatus(status);
+        try {
+            orderService.saveOrder(order);
 
                 // Saga pattern: khi chuyển sang SHIPPED, phát OrderShippedEvent
                 // để inventory trừ kho + notification gửi mail xác nhận giao hàng
@@ -260,13 +275,12 @@ public class OrderController {
                 log.error("Failed to update order status", e);
                 throw new RuntimeException("Failed to update order status", e);
             }
-        }
-        return new ResponseEntity<Order>(
-                headerGenerator.getHeadersForError(),
-                HttpStatus.NOT_FOUND);
     }
     
-    private Order createOrder(List<Item> cart, User user, String promoCode) {
+    private Order createOrder(List<Item> cart, User user, String promoCode,
+                              String shippingName, String shippingPhone,
+                              String shippingEmail, String shippingAddress,
+                              String paymentMethod) {
         Order order = new Order();
         order.setItems(cart);
         order.setUser(user);
@@ -291,28 +305,47 @@ public class OrderController {
         order.setTotal(total);
         order.setOrderedDate(LocalDate.now());
         order.setStatus("PAYMENT_EXPECTED");
+        order.setPaymentMethod(paymentMethod != null && !paymentMethod.trim().isEmpty() ? paymentMethod : "COD");
 
         // Snapshot thông tin giao hàng tại thời điểm đặt hàng (Câu 1.2 Lab 2)
         // Khi user đổi SĐT/email/địa chỉ sau này, đơn hàng cũ vẫn giữ thông tin lúc đặt
-        if (user != null) {
+        if (shippingName != null && !shippingName.trim().isEmpty()) {
+            order.setShippingFullName(shippingName);
+        } else if (user != null) {
             if (user.getUserDetails() != null) {
                 order.setShippingFullName(
-                    (user.getUserDetails().getFirstName() != null ? user.getUserDetails().getFirstName() : "")
+                    ((user.getUserDetails().getFirstName() != null ? user.getUserDetails().getFirstName() : "")
                     + " " +
-                    (user.getUserDetails().getLastName() != null ? user.getUserDetails().getLastName() : "")
-                );
-                order.setShippingPhone(user.getUserDetails().getPhoneNumber());
-                order.setShippingEmail(user.getUserDetails().getEmail());
-                order.setShippingAddress(
-                    (user.getUserDetails().getStreetNumber() != null ? user.getUserDetails().getStreetNumber() : "") + " "
-                    + (user.getUserDetails().getStreet() != null ? user.getUserDetails().getStreet() : "") + ", "
-                    + (user.getUserDetails().getLocality() != null ? user.getUserDetails().getLocality() : "") + ", "
-                    + (user.getUserDetails().getCountry() != null ? user.getUserDetails().getCountry() : "")
+                    (user.getUserDetails().getLastName() != null ? user.getUserDetails().getLastName() : "")).trim()
                 );
             } else {
                 order.setShippingFullName(user.getUserName());
             }
         }
+
+        if (shippingPhone != null && !shippingPhone.trim().isEmpty()) {
+            order.setShippingPhone(shippingPhone);
+        } else if (user != null && user.getUserDetails() != null) {
+            order.setShippingPhone(user.getUserDetails().getPhoneNumber());
+        }
+
+        if (shippingEmail != null && !shippingEmail.trim().isEmpty()) {
+            order.setShippingEmail(shippingEmail);
+        } else if (user != null && user.getUserDetails() != null) {
+            order.setShippingEmail(user.getUserDetails().getEmail());
+        }
+
+        if (shippingAddress != null && !shippingAddress.trim().isEmpty()) {
+            order.setShippingAddress(shippingAddress);
+        } else if (user != null && user.getUserDetails() != null) {
+            order.setShippingAddress(
+                ((user.getUserDetails().getStreetNumber() != null ? user.getUserDetails().getStreetNumber() : "") + " "
+                + (user.getUserDetails().getStreet() != null ? user.getUserDetails().getStreet() : "") + ", "
+                + (user.getUserDetails().getLocality() != null ? user.getUserDetails().getLocality() : "") + ", "
+                + (user.getUserDetails().getCountry() != null ? user.getUserDetails().getCountry() : "")).trim()
+            );
+        }
+
         return order;
     }
 }

@@ -121,4 +121,13 @@ public class AdminCouponController {
         couponRepository.save(coupon);
         return new ResponseEntity<>(coupon, HttpStatus.OK);
     }
+
+    // 6. Public: Get all active, unexpired coupons
+    @GetMapping("/coupons/active")
+    public ResponseEntity<?> getActiveCoupons() {
+        List<Coupon> coupons = couponRepository.findAll().stream()
+                .filter(c -> c.getActive() && c.getExpirationDate().isAfter(LocalDate.now().minusDays(1)) && c.getUsedCount() < c.getMaxUses())
+                .toList();
+        return new ResponseEntity<>(coupons, headerGenerator.getHeadersForSuccessGetMethod(), HttpStatus.OK);
+    }
 }

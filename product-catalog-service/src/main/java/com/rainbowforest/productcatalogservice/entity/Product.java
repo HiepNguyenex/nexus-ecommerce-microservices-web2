@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.ArrayList;
 
 @Entity
 @Table (name = "products")
@@ -38,6 +40,30 @@ public class Product implements java.io.Serializable {
     @Lob
     @Column (name = "image_url", columnDefinition = "LONGTEXT")
     private String imageUrl;
+
+    @Column(name = "top_notes")
+    private String topNotes;
+
+    @Column(name = "middle_notes")
+    private String middleNotes;
+
+    @Column(name = "base_notes")
+    private String baseNotes;
+
+    @Column(name = "olfactory_family")
+    private String olfactoryFamily;
+
+    @Column(name = "concentration")
+    private String concentration;
+
+    @Column(name = "longevity")
+    private String longevity;
+
+    @Column(name = "sillage")
+    private String sillage;
+
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private List<ProductVariant> variants = new ArrayList<>();
 
 	public Product() {
 
@@ -97,5 +123,69 @@ public class Product implements java.io.Serializable {
 
 	public void setImageUrl(String imageUrl) {
 		this.imageUrl = imageUrl;
+	}
+
+	public String getTopNotes() {
+		return topNotes;
+	}
+
+	public void setTopNotes(String topNotes) {
+		this.topNotes = topNotes;
+	}
+
+	public String getMiddleNotes() {
+		return middleNotes;
+	}
+
+	public void setMiddleNotes(String middleNotes) {
+		this.middleNotes = middleNotes;
+	}
+
+	public String getBaseNotes() {
+		return baseNotes;
+	}
+
+	public void setBaseNotes(String baseNotes) {
+		this.baseNotes = baseNotes;
+	}
+
+	public String getOlfactoryFamily() {
+		return olfactoryFamily;
+	}
+
+	public void setOlfactoryFamily(String olfactoryFamily) {
+		this.olfactoryFamily = olfactoryFamily;
+	}
+
+	public String getConcentration() {
+		return concentration;
+	}
+
+	public void setConcentration(String concentration) {
+		this.concentration = concentration;
+	}
+
+	public String getLongevity() {
+		return longevity;
+	}
+
+	public void setLongevity(String longevity) {
+		this.longevity = longevity;
+	}
+
+	public String getSillage() {
+		return sillage;
+	}
+
+	public void setSillage(String sillage) {
+		this.sillage = sillage;
+	}
+
+	public List<ProductVariant> getVariants() {
+		return variants;
+	}
+
+	public void setVariants(List<ProductVariant> variants) {
+		this.variants = variants;
 	}
 }

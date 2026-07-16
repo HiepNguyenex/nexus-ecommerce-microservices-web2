@@ -1,336 +1,145 @@
-# TÓM TẮT ĐẦY ĐỦ: BÀI TẬP THỰC HÀNH 4 - MICROSERVICES E-COMMERCE
+# TÓM TẮT ĐẦY ĐỦ: HỆ THỐNG MICROSERVICES E-COMMERCE (AROMA FOREST)
 > Dự án: `D:\Bai Tap\java-project\e-commerce-microservices-master`
+> Mã số sinh viên: 2123110161 | Sinh viên: Nguyễn Vũ Hiệp
 
 ---
 
-## 1. YÊU CẦU TỔNG THỂ
+## 1. YÊU CẦU TỔNG THỂ & CÁC TÍNH NĂNG ĐÃ NÂNG CẤP
+Hệ thống microservices E-Commerce (Aroma Forest — Artisan Perfume House) chạy trên **Java 21 & Spring Boot 3.2.4**, giao tiếp đồng bộ qua OpenFeign, bất đồng bộ qua **Kafka Cloud (Aiven)**, bảo mật bằng **JWT & BCrypt**, định tuyến qua **Spring Cloud Gateway**.
 
-Nâng cấp hệ thống microservices E-Commerce (Rainbow Forest) lên **Java 21 & Spring Boot 3.x** với các mục tiêu chính:
-- Thay thế Zuul bằng **Spring Cloud Gateway**
-- Tích hợp **Spring Security 6.x + JWT** xác thực/phân quyền tập trung tại Gateway
-- Tích hợp **Apache Kafka** giao tiếp bất đồng bộ giữa các services
-- Xây dựng **giao diện Web Client & Admin Dashboard** Glassmorphism/Dark Mode
-- **Cơ sở dữ liệu**: MySQL của XAMPP (4 services cũ) + H2 in-memory (3 services mới Kafka)
+Các tính năng nâng cấp nâng cao của **Lab 1 & Lab 2**:
+* **Bảo mật**: Mã hóa mật khẩu bằng `BCryptPasswordEncoder` (thay vì plain text).
+* **Quản lý Sản phẩm nâng cao**: Hỗ trợ thuộc tính nước hoa (top notes, middle notes, base notes, sillage, longevity, concentration) và các biến thể dung tích (Product Variants: 2ml, 10ml, 50ml, 100ml) với giá và số lượng tồn kho riêng biệt.
+* **Saga Pattern (Kafka)**: 
+  * `order-created` -> `payment-service` xử lý thanh toán -> phát `payment-completed` -> `order-service` cập nhật trạng thái `PAID`.
+  * Khi chuyển trạng thái sang `SHIPPED` -> phát `order-shipped` -> `inventory-service` trừ số lượng kho + `notification-service` lưu log và thông báo.
+* **Database Shipping Snapshot**: Khi đặt hàng, hệ thống lưu lại ảnh chụp thông tin giao hàng tại thời điểm đặt (Tên, SĐT, Email, Địa chỉ) để đảm bảo nếu user thay đổi thông tin cá nhân sau này, đơn hàng cũ vẫn không bị ảnh hưởng.
+* **Quản trị Khuyến mãi**: Cho phép tạo, xác thực và áp dụng mã giảm giá (Coupons/Promotions) trực tiếp vào đơn hàng.
+* **Tích hợp Cache & Rate Limiting**: Tích hợp Spring Cache (Redis) cho catalog sản phẩm, Redis Rate Limiter (Token Bucket) ở Gateway.
+* **SSE Notifications**: Hỗ trợ Server-Sent Events (SSE) để đẩy thông báo trạng thái đơn hàng thời gian thực từ Backend tới giao diện khách hàng.
+* **Giao diện React (Luxury Glassmorphism)**: Tích hợp đầy đủ các trang Home (phân trang, lọc, tìm kiếm), Scent Finder (quiz gợi ý mùi hương theo thuật toán), Wishlist (yêu thích & chia sẻ), Cart (giỏ hàng đa dung tích, áp mã giảm giá), Profile (lịch sử đơn hàng, cập nhật thông tin cá nhân) và Admin Dashboard (thống kê doanh thu, quản lý sản phẩm/đơn hàng/tài khoản).
 
 ---
 
-## 2. KIẾN TRÚC HỆ THỐNG (ĐÃ HOÀN THÀNH)
-
+## 2. KIẾN TRÚC HỆ THỐNG
 ```
-TRÌNH DUYỆT (web-client/*.html)
-       ↓ HTTP :8900
+TRÌNH DUYỆT (web-client-react / port 5500)
+       ↓ HTTP :8900 (Có Redis Rate Limiter)
 ┌─────────────────────────────────────────────────────────────┐
 │           API GATEWAY (port 8900)                           │
 │  • Spring Cloud Gateway (reactive Netty)                    │
 │  • JwtAuthenticationFilter (validate JWT, attach headers)   │
-│  • SessionFilter (cookie sessionId → downstream)            │
+│  • SessionFilter (cookie sessionId -> downstream)            │
 │  • CorsWebFilter (cho phép browser gọi API)                 │
-│  • StripPrefix=2 routing                                    │
+│  • StripPrefix routing                                      │
 └──────────┬──────────┬──────────┬──────────┬────────────────┘
            │          │          │          │
-    /api/accounts  /api/catalog  /api/shop  /api/review
+     /api/accounts  /api/catalog  /api/shop  /api/review
            ↓          ↓          ↓          ↓
-      USER-SVC   CATALOG-SVC  ORDER-SVC  RECOMMEND-SVC
-      :8811      :8810        :8813      :8812
-      MySQL(users) MySQL(pc)  MySQL(ord) MySQL(rec)
-           ↓                      │
-      JWT /login             Kafka Producer
-                                  ↓
-                         Apache Kafka Broker (:9092)
-                         ┌──────────┬──────────┬──────────┐
-                         ↓          ↓          ↓
-                   PAYMENT-SVC  INVEN-SVC  NOTIF-SVC
-                   :8815 (H2)  :8816 (H2)  :8817 (H2)
-
-Tất cả services đăng ký với EUREKA SERVER (:8761)
+       USER-SVC   CATALOG-SVC  ORDER-SVC  RECOMMEND-SVC
+       :8811      :8810        :8813      :8812
+       MySQL(users) MySQL(catalog) MySQL(orders) MySQL(recommend)
+       (BCrypt)   (Redis Cache) (Redis Cart)
+           │                         │
+      JWT /login                 Kafka Event
+           ↓                         ↓
+     ┌──────────────────────────────────────────────────┐
+     │           AIVEN CLOUD KAFKA BROKER               │
+     └──────────────────────────────────────────────────┘
+           │          │          │          │
+           ↓          ↓          ↓          ↓
+      PAYMENT-SVC  INVEN-SVC  NOTIF-SVC   CATALOG-SVC
+      :8815 (H2)   :8816 (H2) :8817(MySQL/SSE) :8810 (Sync kho)
 ```
 
 ---
 
-## 3. CÁC SERVICES VÀ CỔNG PORT
-
-| Service | Port | DB | Trạng thái | Ghi chú |
+## 3. CÁC SERVICES VÀ CỔNG PORT THỰC TẾ
+| Service | Cổng Port | Database | Trạng thái | Tính năng chính |
 |---|---|---|---|---|
-| `eureka-server` | 8761 | - | ✅ UP | Service Registry |
-| `api-gateway` | 8900 | - | ✅ UP | Spring Cloud Gateway + JWT Filter + CORS |
-| `user-service` | 8811 | MySQL `users` | ✅ UP | JWT /login endpoint |
-| `product-catalog-service` | 8810 | MySQL `product_catalog` | ✅ UP | - |
-| `product-recommendation-service` | 8812 | MySQL `product_recommendations` | ✅ UP | Kafka Consumer mới lắng nghe `order-created` để tự động gợi ý |
-| `order-service` | 8813 | MySQL `orders` | ✅ UP | Kafka Producer |
-| `payment-service` | 8815 | H2 in-memory | ✅ UP | Kafka Consumer mới |
-| `inventory-service` | 8816 | H2 in-memory | ✅ UP | Kafka Consumer mới |
-| `notification-service` | 8817 | H2 in-memory | ✅ UP | Kafka Consumer mới |
+| `eureka-server` | 8761 | - | ✅ Hoạt động | Đăng ký dịch vụ trung tâm (Service Discovery) |
+| `api-gateway` | 8900 | Redis | ✅ Hoạt động | Định tuyến, validate JWT, CORS, Rate limiting |
+| `user-service` | 8811 | MySQL `users` | ✅ Hoạt động | Quản lý user, mã hóa BCrypt, thông tin chi tiết |
+| `product-catalog-service` | 8810 | MySQL `product_catalog` | ✅ Hoạt động | CRUD sản phẩm, nước hoa notes, các dung tích variant |
+| `product-recommendation-service` | 8812 | MySQL `product_recommendations` | ✅ Hoạt động | Quản lý đánh giá và xếp hạng sản phẩm (reviews, ratings) |
+| `order-service` | 8813 | MySQL `orders` | ✅ Hoạt động | Giỏ hàng, áp mã giảm giá, checkout, lưu snapshot địa chỉ |
+| `payment-service` | 8815 | H2 database | ✅ Hoạt động | Xử lý thanh toán bất đồng bộ qua Kafka |
+| `inventory-service` | 8816 | H2 database | ✅ Hoạt động | Trừ/cập nhật tồn kho thật bất đồng bộ qua Kafka |
+| `notification-service` | 8817 | MySQL `notifications` | ✅ Hoạt động | Ghi log thông báo hệ thống, cung cấp SSE stream đẩy notify |
 
 ---
 
-## 4. TÀI KHOẢN DEMO (MySQL XAMPP)
-
-| Username | Password | Role | Quyền hạn |
-|---|---|---|---|
-| `johndoe` | `password123` | `ROLE_USER` | Mua hàng, giỏ hàng, đặt hàng, viết review |
-| `janesmith` | `password456` | `ROLE_ADMIN` | Tất cả + quản lý sản phẩm, đơn hàng |
-
-> **Lưu ý**: Password được lưu dưới dạng plain text (`NoOpPasswordEncoder`) - chỉ dùng cho demo/học tập.
+## 4. TÀI KHOẢN DEMO (Đã mã hóa BCrypt)
+* **Khách hàng thường**: `user` / `123456` (Quyền: `ROLE_USER` — Mua hàng, xem sản phẩm, Scent Finder, Wishlist, đặt hàng, viết review).
+* **Quản trị viên**: `admin` / `123456` (Quyền: `ROLE_ADMIN` — Tất cả các quyền trên + xem doanh thu thống kê, quản lý sản phẩm, đơn hàng, khóa/mở khóa tài khoản).
+* **User mẫu**: `johndoe` / `password123` (`ROLE_USER`)
+* **Admin mẫu**: `janesmith` / `password456` (`ROLE_ADMIN`)
 
 ---
 
 ## 5. API GATEWAY - CẤU HÌNH ROUTING
-
 File: `api-gateway/src/main/resources/application.properties`
-
-```properties
-spring.cloud.gateway.routes[0].id=user-service
-spring.cloud.gateway.routes[0].uri=lb://user-service
-spring.cloud.gateway.routes[0].predicates[0]=Path=/api/accounts/**
-spring.cloud.gateway.routes[0].filters[0]=StripPrefix=2
-
-spring.cloud.gateway.routes[1].id=product-catalog-service
-spring.cloud.gateway.routes[1].uri=lb://product-catalog-service
-spring.cloud.gateway.routes[1].predicates[0]=Path=/api/catalog/**
-spring.cloud.gateway.routes[1].filters[0]=StripPrefix=2
-
-spring.cloud.gateway.routes[2].id=order-service
-spring.cloud.gateway.routes[2].uri=lb://order-service
-spring.cloud.gateway.routes[2].predicates[0]=Path=/api/shop/**
-spring.cloud.gateway.routes[2].filters[0]=StripPrefix=2
-
-spring.cloud.gateway.routes[3].id=product-recommendation-service
-spring.cloud.gateway.routes[3].uri=lb://product-recommendation-service
-spring.cloud.gateway.routes[3].predicates[0]=Path=/api/review/**
-spring.cloud.gateway.routes[3].filters[0]=StripPrefix=2
-```
-
-**Ý nghĩa StripPrefix=2**: Request `/api/catalog/products` → Sau khi strip 2 tiền tố → `/products` gửi tới service.
+* `/api/accounts/**` -> `lb://user-service` (StripPrefix=2)
+* `/api/catalog/**` -> `lb://product-catalog-service` (StripPrefix=2)
+* `/api/shop/**` -> `lb://order-service` (StripPrefix=2)
+* `/api/admin/**` -> `lb://order-service` (StripPrefix=1)
+* `/api/notifications/**` -> `lb://notification-service` (StripPrefix=1)
+* `/api/review/**` -> `lb://product-recommendation-service` (StripPrefix=2)
+* `/api/payment/**` -> `lb://payment-service` (StripPrefix=2)
 
 ---
 
-## 6. CÁC ENDPOINT API QUAN TRỌNG
-
-### User Service (qua Gateway /api/accounts/*)
-| Method | Endpoint | Mô tả | Auth |
-|---|---|---|---|
-| POST | `/api/accounts/login` | Đăng nhập, lấy JWT token | Public |
-| POST | `/api/accounts/register` | Đăng ký tài khoản mới | Public |
-| GET | `/api/accounts/users` | Danh sách users | JWT |
-| GET | `/api/accounts/users?name=xxx` | Tìm user theo tên | JWT |
-| GET | `/api/accounts/users/{id}` | Lấy user theo ID | JWT |
-
-### Product Catalog Service (qua Gateway /api/catalog/*)
-| Method | Endpoint | Mô tả | Auth |
-|---|---|---|---|
-| GET | `/api/catalog/products` | Danh sách tất cả sản phẩm | Public |
-| GET | `/api/catalog/products/{id}` | Chi tiết sản phẩm | Public |
-| POST | `/api/catalog/admin/products` | Thêm/Cập nhật sản phẩm | **ROLE_ADMIN** |
-| DELETE | `/api/catalog/admin/products/{id}` | Xóa sản phẩm | **ROLE_ADMIN** |
-
-### Order Service (qua Gateway /api/shop/*)
-| Method | Endpoint | Mô tả | Auth |
-|---|---|---|---|
-| GET | `/api/shop/cart` | Xem giỏ hàng | JWT |
-| POST | `/api/shop/cart?productId=X&quantity=Y` | Thêm/Cập nhật sản phẩm trong giỏ | JWT |
-| DELETE | `/api/shop/cart?productId=X` | Xóa sản phẩm khỏi giỏ | JWT |
-| POST | `/api/shop/order/{userId}` | Đặt hàng (kích hoạt Kafka) | JWT |
-| GET | `/api/shop/orders` | Danh sách tất cả đơn hàng | **ROLE_ADMIN** |
-| PUT | `/api/shop/orders/{id}/status?status=X` | Cập nhật trạng thái đơn hàng | **ROLE_ADMIN** |
-
-### Recommendation Service (qua Gateway /api/review/*)
-| Method | Endpoint | Mô tả | Auth |
-|---|---|---|---|
-| GET | `/api/review/recommendations/products/{productId}` | Đánh giá theo sản phẩm | Public |
-| POST | `/api/review/recommendations?productId=X&userName=Y&rating=Z` | Gửi đánh giá | JWT |
+## 6. LUỒNG SAGA PATTERN (EVENT-DRIVEN FLOW)
+1. **Đặt hàng**: Khách hàng checkout (`POST /api/shop/order/{userId}`).
+   * `order-service` lưu đơn hàng ở trạng thái `PAYMENT_EXPECTED`.
+   * Ghi nhận snapshot địa chỉ giao hàng và SĐT của user.
+   * Phát sự kiện `order-created` lên Kafka topic.
+2. **Thanh toán**: `payment-service` nhận được sự kiện `order-created`.
+   * Giả lập cổng thanh toán thành công (COD hoặc Bank).
+   * Lưu thông tin giao dịch vào H2 DB.
+   * Phát sự kiện `payment-completed` lên Kafka topic.
+3. **Cập nhật Trạng thái**: `order-service` nhận được `payment-completed`.
+   * Cập nhật trạng thái đơn hàng thành `PAID`.
+4. **Vận chuyển & Trừ kho**: Admin cập nhật đơn hàng thành `SHIPPED` (`PUT /api/shop/orders/{id}/status?status=SHIPPED`).
+   * `order-service` phát sự kiện `order-shipped` lên Kafka topic.
+   * **Trừ kho thật**: `inventory-service` nhận sự kiện -> thực hiện trừ số lượng kho.
+   * **Trừ kho hiển thị**: `product-catalog-service` nhận sự kiện -> trừ số lượng tồn kho sản phẩm hiển thị trên web, đồng thời xóa cache Redis.
+   * **Thông báo**: `notification-service` nhận sự kiện -> ghi nhận log notify dạng tài liệu cho ADMIN và sẵn sàng đẩy notify SSE cho khách hàng.
 
 ---
 
-## 7. LUỒNG KAFKA (ASYNC)
+## 7. GIAO DIỆN REACT WEB CLIENT (web-client-react)
+Đường dẫn: `D:\Bai Tap\java-project\e-commerce-microservices-master\web-client-react\`
 
-```
-Khách đặt hàng (POST /api/shop/order/{userId})
-  → order-service tạo Order trong MySQL
-  → order-service PHÁT sự kiện "order-created" topic
-       ↓ (bất đồng bộ)
-       ├── payment-service: Nhận sự kiện → Giả lập thanh toán → Lưu DB H2
-       │       → PHÁT sự kiện "payment-completed" topic
-       │             ↓
-       │           order-service: Nhận → Cập nhật status = "PAID"
-       │
-       ├── inventory-service: Nhận sự kiện → Trừ số lượng kho (giả lập, lưu H2)
-       │
-       ├── product-recommendation-service: Nhận sự kiện → Tự động tạo gợi ý 5 sao cho sản phẩm đã mua
-       │
-       └── notification-service: Nhận sự kiện → In log giả lập email
-```
-
-> **Lưu ý quan trọng**: Dự án đã được nâng cấp kết nối trực tiếp tới **Kafka Cloud (Aiven)** qua SSL/SASL. Do đó, người dùng **không cần** chạy Zookeeper & Kafka cục bộ qua Docker Desktop nữa. Chỉ cần kết nối Internet, luồng bất đồng bộ của cả 5 services (`order-service`, `payment-service`, `inventory-service`, `product-recommendation-service`, `notification-service`) sẽ tự động hoạt động đồng bộ.
-
----
-
-## 8. GIAO DIỆN WEB CLIENT
-
-Đường dẫn: `D:\Bai Tap\java-project\e-commerce-microservices-master\web-client\`
-
-| File | Mô tả |
+| File/Trang | Mô tả chi tiết chức năng |
 |---|---|
-| `index.html` | Trang chủ: danh sách sản phẩm, lọc theo danh mục, tìm kiếm, thêm vào giỏ hàng |
-| `product.html` | Chi tiết sản phẩm: mô tả, giá, đánh giá 5 sao, thêm vào giỏ |
-| `login.html` | Đăng nhập / Đăng ký với tab UI |
-| `cart.html` | Giỏ hàng: xem, thay đổi số lượng, xóa sản phẩm, đặt hàng |
-| `admin.html` | Admin Dashboard: stats, quản lý sản phẩm, quản lý đơn hàng + đổi trạng thái |
-| `styles.css` | Design system: Glassmorphism, Dark/Light mode, animations |
-| `app.js` | Hàm chung: `apiRequest()` (tự inject JWT), `showToast()`, `syncAuthUI()`, logout |
-
-**Cách mở giao diện**: Mở trực tiếp file `index.html` bằng trình duyệt Chrome/Edge (không cần web server riêng).
+| `HomePage.jsx` | Trang chủ sang trọng: hiển thị danh sách nước hoa, bộ lọc theo nhóm giới tính (Nam, Nữ, Unisex), tìm kiếm thông minh, phân trang, thêm vào wishlist, thêm nhanh mẫu thử vào giỏ hàng. |
+| `ProductPage.jsx` | Chi tiết nước hoa: hiển thị các nốt hương (top/middle/base notes), độ lưu hương, tỏa hương, chọn dung tích (2ml, 10ml, 50ml, 100ml) với giá cập nhật động, và xem/gửi đánh giá sao. |
+| `ScentFinderPage.jsx` | Quiz tìm mùi hương thông minh: Gồm 4 câu hỏi trắc nghiệm tâm lý và sở thích để gợi ý 3 chai nước hoa phù hợp nhất với tỉ lệ tương thích (%). |
+| `WishlistPage.jsx` | Danh sách yêu thích: cho phép xem các sản phẩm đã thích, thêm nhanh vào giỏ hàng, và tạo link chia sẻ bộ sưu tập của mình. |
+| `CartPage.jsx` | Giỏ hàng chi tiết: xem danh sách các mẫu thử/chai đầy chọn mua, đổi số lượng, áp mã giảm giá (coupon), điền thông tin ship và chọn phương thức thanh toán để checkout. |
+| `ProfilePage.jsx` | Trang cá nhân: Cập nhật thông tin chi tiết (Email, SĐT, Địa chỉ) và xem danh sách đơn hàng đã đặt kèm trạng thái thực tế. |
+| `AdminPage.jsx` | Dashboard Admin: Thống kê tổng doanh thu lọc theo thời gian, quản lý danh sách sản phẩm và các biến thể kích thước, cập nhật trạng thái đơn hàng theo luồng Saga, quản lý danh sách người dùng (khóa/mở khóa tài khoản). |
 
 ---
 
-## 9. CẤU TRÚC THƯ MỤC DỰ ÁN
-
-```
-e-commerce-microservices-master/
-├── api-gateway/                    ← Spring Cloud Gateway + JWT + CORS
-│   └── src/.../filter/
-│       ├── JwtAuthenticationFilter.java
-│       └── SessionFilter.java
-├── eureka-server/                  ← Service Registry
-├── user-service/                   ← MySQL, JWT /login
-│   └── src/.../
-│       ├── controller/AuthController.java   ← POST /login → JWT
-│       └── security/
-│           ├── JwtProvider.java
-│           └── WebSecurityConfig.java
-├── product-catalog-service/        ← MySQL
-│   └── src/.../controller/
-│       ├── ProductController.java          ← GET /products
-│       └── AdminProductController.java     ← POST/DELETE /admin/products (ROLE_ADMIN)
-├── product-recommendation-service/ ← MySQL
-├── order-service/                  ← MySQL + Kafka Producer
-│   └── src/.../
-│       ├── controller/
-│       │   ├── CartController.java         ← GET/POST/DELETE /cart
-│       │   └── OrderController.java        ← POST /order/{userId}, GET /orders, PUT /orders/{id}/status
-│       ├── messaging/OrderProducer.java
-│       └── messaging/PaymentConsumer.java  ← Nhận payment-completed
-├── payment-service/                ← [NEW] H2, Kafka Consumer order-created
-├── inventory-service/              ← [NEW] H2, Kafka Consumer order-created
-├── notification-service/           ← [NEW] H2, Kafka Consumer order-created
-├── web-client/                     ← Frontend: HTML/CSS/JS Glassmorphism
-│   ├── index.html, product.html, login.html, cart.html, admin.html
-│   ├── styles.css, app.js
-├── docker-compose.yml              ← Zookeeper + Kafka broker
-├── seed.sql                        ← Dữ liệu mẫu cho MySQL XAMPP
-├── run_all_background.ps1          ← Khởi chạy tất cả 9 services ngầm
-└── logs/                           ← Log của từng service
-```
-
----
-
-## 10. CÁC VẤN ĐỀ KỸ THUẬT ĐÃ GIẢI QUYẾT
-
-| Vấn đề | Giải pháp |
-|---|---|
-| Zuul không tương thích Spring Boot 3.x | Viết lại sang Spring Cloud Gateway reactive |
-| `javax.*` không tồn tại ở Spring Boot 3.x | Thay tất cả bằng `jakarta.*` |
-| `WebSecurityConfigurerAdapter` bị xóa | Dùng `SecurityFilterChain` Bean pattern |
-| Redis không cần thiết cho Cart | Mock bằng `ConcurrentHashMap` trong memory |
-| JUnit 4 test compile lỗi | Thêm `junit-vintage-engine` dependency |
-| User/Product thiếu getter/setter cho `id` | Thêm thủ công getter `getId()`, `getProductId()` |
-| CORS block browser gọi API | Thêm `CorsWebFilter` Bean vào `WebSecurityConfig` |
-| Gateway cần tích hợp JWT | Viết `JwtAuthenticationFilter` implements `GlobalFilter` |
-| Lỗi Hibernate Lazy Initialization (500) tại Catalog Service | Chuyển `getOne(id)` thành `findById(id).orElse(null)` để tránh proxy initialization error khi Feign Client truy xuất giá sản phẩm |
-| Detached Entity Persistence Exception tại Recommendation Service | Loại bỏ `@GeneratedValue` trên các thực thể replica (`Product`, `User`), thêm `@Transactional` cho service, và loại bỏ `CascadeType.ALL` trên `@ManyToOne` để tránh lỗi lưu trùng khoá chính và ngăn chặn việc xoá nhầm sản phẩm/người dùng khi xoá đánh giá |
-
----
-
-## 11. LỖI THƯỜNG GẶP & CÁCH XỬ LÝ
-
-### Gateway báo 401 Unauthorized
-- Kiểm tra token JWT còn hạn chưa (24h).
-- Đăng nhập lại tại trang `login.html`.
-
-### Services không kết nối được Kafka (WARN trong log)
-- **Nguyên nhân**: Docker chưa chạy hoặc chưa `docker compose up -d`.
-- **Xử lý**: Services vẫn hoạt động bình thường, chỉ thiếu luồng Kafka bất đồng bộ. Đặt hàng vẫn thành công nhưng Payment/Inventory/Notification không xử lý.
-
-### `mvn clean package` lỗi "Failed to delete .jar"
-- **Nguyên nhân**: File JAR đang bị Java process lock (đang chạy).
-- **Xử lý**: Dừng services trước bằng `Stop-Process -Name java -Force`.
-
-### Cannot find file D:\Bai (lỗi unicode trong path)
-- Lỗi hiển thị của Maven Wrapper khi đường dẫn có dấu cách. **Không ảnh hưởng** đến quá trình build.
-
----
-
-## 12. LỆNH VẬN HÀNH THƯỜNG DÙNG (PowerShell)
-
+## 8. LỆNH VẬN HÀNH THÔNG DỤNG (PowerShell)
 ```powershell
-# Dừng tất cả Java services
-Stop-Process -Name java -Force -ErrorAction SilentlyContinue
+# 1. Dừng nhanh tất cả các dịch vụ đang chạy
+.\stop_all.ps1
 
-# Khởi động lại tất cả services
-$env:JAVA_HOME = "C:\Program Files\Java\jdk-21"
-cd "D:\Bai Tap\java-project\e-commerce-microservices-master"
-.\run_all_background.ps1
+# 2. Khởi tạo dữ liệu MySQL ban đầu (XAMPP 3306)
+Get-Content seed.sql | C:\xampp\mysql\bin\mysql.exe -u root
 
-# Biên dịch một service cụ thể (ví dụ order-service)
-cd "D:\Bai Tap\java-project\e-commerce-microservices-master\order-service"
-$env:JAVA_HOME = "C:\Program Files\Java\jdk-21"
-.\mvnw.cmd clean package -DskipTests
+# 3. Biên dịch lại toàn bộ các microservices
+.\build_all.ps1
 
-# Khởi động Kafka (cần Docker Desktop)
-cd "D:\Bai Tap\java-project\e-commerce-microservices-master"
-docker compose up -d
+# 4. Khởi chạy toàn bộ hệ thống ngầm và React Client bằng một lệnh duy nhất
+.\start_fast.ps1
 
-# Xem log realtime của một service
-Get-Content "D:\Bai Tap\java-project\e-commerce-microservices-master\logs\order.log" -Wait -Tail 50
+# 5. Chạy kiểm thử tự động luồng E2E
+.\verify_flow.ps1
 ```
 
 ---
-
-## 13. SEED DATA - DỮ LIỆU MẪU
-
-File: `seed.sql` - Đã import vào MySQL XAMPP:
-
-**Products (product_catalog DB)**:
-- ID 1: Le Labo Santal 33 - $310.00 - Unisex
-- ID 2: Chanel No. 5 - $165.00 - Women
-- ID 3: Dior Sauvage - $145.00 - Men
-- ID 4: Byredo Gypsy Water - $200.00 - Unisex
-- ID 5: Bleu de Chanel - $150.00 - Men
-- ID 6: Baccarat Rouge 540 - $325.00 - Unisex
-- ... và các sản phẩm nước hoa cao cấp khác (Tổng cộng 18 sản phẩm).
-
-**Users (users DB)**:
-- `johndoe` / `password123` → ROLE_USER
-- `janesmith` / `password456` → ROLE_ADMIN
-
----
-
-## 14. VIỆC CÒN LẠI / CÓ THỂ LÀM TIẾP
-
-- [x] Triển khai và kết nối Kafka Cloud (Aiven) thành công cho cả 5 services để chạy luồng bất đồng bộ
-- [ ] Mã hoá password bằng BCrypt (hiện đang dùng NoOpPasswordEncoder)
-- [ ] Thêm tính năng tải ảnh sản phẩm thực tế (hiện dùng Unsplash URL backup)
-- [ ] Đẩy source code lên GitHub theo yêu cầu bài tập
-- [ ] Thêm validation và error handling chi tiết hơn cho các form
-- [x] Thực thi và kiểm thử thành công chức năng quản trị tài khoản (khóa/mở khóa) tại Admin Dashboard
-
----
-
-## 15. THÔNG TIN KỸ THUẬT STACK
-
-| Thành phần | Phiên bản |
-|---|---|
-| Java | 21 |
-| Spring Boot | 3.2.4 |
-| Spring Cloud | 2023.0.0 |
-| Spring Security | 6.x |
-| JWT (jjwt) | 0.11.5 |
-| Spring Kafka | 3.x (bundled) |
-| Hibernate | 6.4.4.Final |
-| MySQL Connector | 8.0.33 |
-| H2 Database | 2.x (in-memory) |
-| Netflix Eureka | Bundled with Spring Cloud 2023 |
-| Spring Cloud Gateway | Reactive Netty |
-
----
-
-*Tóm tắt tạo lúc: 2026-06-08 14:08 (ICT) - Đường dẫn dự án: `D:\Bai Tap\java-project\e-commerce-microservices-master`*
+*Cập nhật trạng thái hoàn thành đồ án ngày: 2026-07-15 — Sinh viên thực hiện: Nguyễn Vũ Hiệp*

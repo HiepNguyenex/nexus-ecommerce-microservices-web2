@@ -96,4 +96,18 @@ public class ProductServiceImpl implements ProductService {
         log.info("getProductsPaged(category={}, search={}) — truy vấn phân trang", category, search);
         return productRepository.searchProducts(category, search, pageable);
     }
+
+    @Override
+    @CacheEvict(value = "products", allEntries = true)
+    public void reduceStock(Long productId, int quantity) {
+        Product product = productRepository.findById(productId).orElse(null);
+        if (product != null) {
+            int oldQty = product.getAvailability();
+            int newQty = Math.max(0, oldQty - quantity);
+            product.setAvailability(newQty);
+            productRepository.save(product);
+            log.info("[Saga Sync] Đã cập nhật tồn kho sản phẩm ID {}: {} -> {} (trừ {}) và xóa cache",
+                productId, oldQty, newQty, quantity);
+        }
+    }
 }

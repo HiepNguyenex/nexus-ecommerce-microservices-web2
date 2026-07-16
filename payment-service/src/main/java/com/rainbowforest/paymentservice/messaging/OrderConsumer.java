@@ -27,25 +27,35 @@ public class OrderConsumer {
     public void consumeOrderCreated(OrderCreatedEvent event) {
         logger.info("Nhận được sự kiện order-created từ Kafka: {}", event);
 
-        // Giả lập xử lý thanh toán và lưu lịch sử
-        Payment payment = new Payment();
-        payment.setOrderId(event.getOrderId());
-        payment.setUserId(event.getUserId());
-        payment.setAmount(event.getTotal());
-        payment.setStatus("SUCCESS"); // Mặc định giả lập thanh toán thành công
-        payment.setPaymentDate(LocalDateTime.now());
+        boolean isStripe = "STRIPE".equalsIgnoreCase(event.getPaymentMethod());
 
-        payment = paymentRepository.save(payment);
-        logger.info("Đã lưu lịch sử thanh toán thành công: {}", payment);
+        Payment payment = paymentRepository.findByOrderId(event.getOrderId());
+        if (payment == null) {
+            payment = new Payment();
+            payment.setOrderId(event.getOrderId());
+            payment.setUserId(event.getUserId());
+            payment.setAmount(event.getTotal());
+            payment.setPaymentDate(LocalDateTime.now());
+        }
 
-        // Gửi sự kiện thanh toán hoàn thành
-        PaymentCompletedEvent completedEvent = new PaymentCompletedEvent(
-                payment.getOrderId(),
-                payment.getId(),
-                payment.getStatus(),
-                payment.getAmount()
-        );
+        if (isStripe) {
+            payment.setStatus("PENDING");
+            payment = paymentRepository.save(payment);
+            logger.info("Đơn hàng {} sử dụng Stripe. Đã lưu Payment PENDING: {}", event.getOrderId(), payment);
+        } else {
+            payment.setStatus("SUCCESS");
+            payment = paymentRepository.save(payment);
+            logger.info("Đã lưu lịch sử thanh toán thành công (COD/BANK_TRANSFER): {}", payment);
 
-        paymentProducer.sendPaymentCompletedEvent(completedEvent);
+            // Gửi sự kiện thanh toán hoàn thành
+            PaymentCompletedEvent completedEvent = new PaymentCompletedEvent(
+                    payment.getOrderId(),
+                    payment.getId(),
+                    payment.getStatus(),
+                    payment.getAmount()
+            );
+
+            paymentProducer.sendPaymentCompletedEvent(completedEvent);
+        }
     }
 }

@@ -1,6 +1,7 @@
 package com.rainbowforest.userservice.controller;
 
 import com.rainbowforest.userservice.entity.User;
+import com.rainbowforest.userservice.entity.UserDetails;
 import com.rainbowforest.userservice.http.header.HeaderGenerator;
 import com.rainbowforest.userservice.service.UserService;
 import org.slf4j.Logger;
@@ -102,4 +103,25 @@ public class UserController {
         }
         return new ResponseEntity<User>(HttpStatus.NOT_FOUND);
     }
+
+    @PutMapping (value = "/users/{id}/details")
+    public ResponseEntity<User> updateUserDetails(
+            @PathVariable("id") Long id,
+            @RequestBody UserDetails details) {
+        User user = userService.getUserById(id);
+        if (user != null) {
+            try {
+                User updatedUser = userService.updateUserDetails(id, details);
+                return new ResponseEntity<User>(
+                        updatedUser,
+                        headerGenerator.getHeadersForSuccessGetMethod(),
+                        HttpStatus.OK);
+            } catch (Exception e) {
+                log.error("Failed to update user details", e);
+                throw new RuntimeException("Failed to update user details", e);
+            }
+        }
+        return new ResponseEntity<User>(HttpStatus.NOT_FOUND);
+    }
 }
+

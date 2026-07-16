@@ -1,58 +1,82 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500;1,600&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #dbccb8;
-  --color-primary-dark: #c9b8a0;
-  --color-primary-light: #ede4d8;
-  --color-accent: #dbccb8;
-  --color-accent-dark: #c9b8a0;
-  --color-surface: #ffffff;
-  --color-surface-light: #fffaf6;
-  --color-muted: #8a8480;
-  --color-border: rgba(0, 0, 0, 0.06);
-  --color-border-light: rgba(0, 0, 0, 0.1);
-  --color-success: #a8c5a0;
-  --color-warning: #d4b896;
-  --color-danger: #c99a8a;
-  --color-bg: #fffaf6;
-  --color-bg-light: #f5f0eb;
-  --font-sans: 'Outfit', 'Inter', sans-serif;
+  /* ── Cold Luxury Dark Palette ── */
+  --color-bg:            #0C0B09;
+  --color-bg-light:      #161510;
+  --color-surface:       #161510;
+  --color-surface-2:     #1E1C18;
+  --color-surface-3:     #252319;
+
+  --color-accent:        #C9973D;
+  --color-accent-dark:   #A87B2C;
+  --color-accent-light:  #DDB05A;
+  --color-accent-muted:  rgba(201, 151, 61, 0.12);
+
+  --color-primary:       #C9973D;
+  --color-primary-dark:  #A87B2C;
+  --color-primary-light: #DDB05A;
+
+  --color-text:          #EDE8DF;
+  --color-text-secondary:#9A9080;
+  --color-text-muted:    #5C5850;
+  --color-muted:         #9A9080;
+
+  --color-border:        rgba(201, 151, 61, 0.12);
+  --color-border-light:  rgba(201, 151, 61, 0.20);
+  --color-border-bright: rgba(201, 151, 61, 0.40);
+
+  --color-success:       #6B9E78;
+  --color-warning:       #C9973D;
+  --color-danger:        #B05A5A;
+
+  --font-sans:    'Outfit', sans-serif;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-mono:    'JetBrains Mono', monospace;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-primary) transparent;
+  scrollbar-color: var(--color-accent) transparent;
 }
-*::-webkit-scrollbar { width: 6px; }
+*::-webkit-scrollbar { width: 5px; }
 *::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: var(--color-primary); border-radius: 3px; }
+*::-webkit-scrollbar-thumb { background: var(--color-accent); border-radius: 3px; }
 
 body {
   font-family: var(--font-sans);
   background: var(--color-bg);
-  color: #2d2a26;
+  color: var(--color-text);
   overflow-x: hidden;
 }
 
-/* ─── Glassmorphism ─── */
+/* ─── Font Display Utility ─── */
+.font-display {
+  font-family: var(--font-display);
+}
+.font-mono-custom {
+  font-family: var(--font-mono);
+}
+
+/* ─── Glassmorphism — Dark Edition ─── */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(12, 11, 9, 0.75);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(219, 204, 184, 0.2);
+  border: 1px solid rgba(201, 151, 61, 0.12);
 }
 .glass-strong {
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(12, 11, 9, 0.88);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(219, 204, 184, 0.25);
-  box-shadow: 0 4px 30px rgba(219, 204, 184, 0.15);
+  border: 1px solid rgba(201, 151, 61, 0.15);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
 }
 .glass-hover:hover {
-  background: rgba(255, 255, 255, 0.9);
-  border-color: rgba(219, 204, 184, 0.4);
-  box-shadow: 0 8px 32px rgba(219, 204, 184, 0.2);
+  background: rgba(22, 21, 16, 0.90);
+  border-color: rgba(201, 151, 61, 0.30);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 /* ─── Animations ─── */
@@ -60,7 +84,7 @@ body {
   animation: fadeIn 0.5s ease-out both;
 }
 .animate-fade-in-up {
-  animation: fadeInUp 0.6s ease-out both;
+  animation: fadeInUp 0.7s ease-out both;
 }
 .animate-slide-up {
   animation: slideUp 0.6s ease-out both;
@@ -75,110 +99,108 @@ body {
   animation: pulseSoft 3s ease-in-out infinite;
 }
 .animate-shimmer {
-  background: linear-gradient(90deg, #ede4d8 25%, #f5f0eb 50%, #ede4d8 75%);
+  background: linear-gradient(90deg, #1E1C18 25%, #252319 50%, #1E1C18 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
-  border-radius: 12px;
+  border-radius: 4px;
 }
 
 @keyframes fadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(40px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
 }
 @keyframes float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
+  50%       { transform: translateY(-12px); }
 }
 @keyframes pulseSoft {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.8; }
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
 }
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }
 
 /* ─── Gradients ─── */
 .text-gradient {
-  background: linear-gradient(135deg, #dbccb8 0%, #c9b8a0 50%, #b8a690 100%);
+  background: linear-gradient(135deg, #DDB05A 0%, #C9973D 50%, #A87B2C 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 .text-gradient-accent {
-  background: linear-gradient(135deg, #c9b8a0 0%, #b8a690 100%);
+  background: linear-gradient(135deg, #C9973D 0%, #A87B2C 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-.bg-glow-warm {
-  background: radial-gradient(circle at 30% 30%, rgba(219, 204, 184, 0.25) 0%, transparent 50%);
+/* ─── Amber Glow Effects ─── */
+.amber-glow {
+  box-shadow: 0 0 30px rgba(201, 151, 61, 0.15), 0 0 60px rgba(201, 151, 61, 0.05);
 }
-.bg-glow-warm-2 {
-  background: radial-gradient(circle at 70% 70%, rgba(201, 184, 160, 0.15) 0%, transparent 50%);
+.amber-glow-sm {
+  box-shadow: 0 0 16px rgba(201, 151, 61, 0.20);
 }
-.bg-glow-cream {
-  background: radial-gradient(circle at 50% 50%, rgba(255, 250, 246, 0.5) 0%, transparent 60%);
+.bg-amber-radial {
+  background: radial-gradient(ellipse at 60% 40%, rgba(201, 151, 61, 0.08) 0%, transparent 60%);
+}
+.bg-amber-radial-left {
+  background: radial-gradient(ellipse at 20% 50%, rgba(201, 151, 61, 0.06) 0%, transparent 55%);
 }
 
 /* ─── Card effects ─── */
 .card-hover {
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .card-hover:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 20px 60px rgba(219, 204, 184, 0.2);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(201, 151, 61, 0.25);
 }
 
-/* ─── Background grid ─── */
+/* ─── Background grid — barely visible amber on dark ─── */
 .bg-grid {
   background-image:
-    linear-gradient(rgba(219, 204, 184, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(219, 204, 184, 0.08) 1px, transparent 1px);
-  background-size: 60px 60px;
+    linear-gradient(rgba(201, 151, 61, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201, 151, 61, 0.04) 1px, transparent 1px);
+  background-size: 64px 64px;
 }
 
 /* ─── Toast animations ─── */
-.toast-enter {
-  animation: slideInRight 0.35s cubic-bezier(0.68, -0.55, 0.265, 1.55) both;
-}
-.toast-exit {
-  animation: slideOutRight 0.3s ease-in both;
-}
+.toast-enter { animation: slideInRight 0.35s cubic-bezier(0.68, -0.55, 0.265, 1.55) both; }
+.toast-exit  { animation: slideOutRight 0.3s ease-in both; }
 @keyframes slideInRight {
   from { transform: translateX(120%) scale(0.9); opacity: 0; }
-  to { transform: translateX(0) scale(1); opacity: 1; }
+  to   { transform: translateX(0) scale(1);      opacity: 1; }
 }
 @keyframes slideOutRight {
-  from { transform: translateX(0) scale(1); opacity: 1; }
-  to { transform: translateX(120%) scale(0.9); opacity: 0; }
+  from { transform: translateX(0) scale(1);      opacity: 1; }
+  to   { transform: translateX(120%) scale(0.9); opacity: 0; }
 }
 
 /* ─── Staggered children ─── */
-.stagger-children > * {
-  animation: fadeInUp 0.5s ease-out both;
-}
+.stagger-children > * { animation: fadeInUp 0.5s ease-out both; }
 .stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
-.stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.10s; }
 .stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
-.stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.20s; }
 .stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
-.stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.30s; }
 .stagger-children > *:nth-child(7) { animation-delay: 0.35s; }
-.stagger-children > *:nth-child(8) { animation-delay: 0.4s; }
+.stagger-children > *:nth-child(8) { animation-delay: 0.40s; }
 
 /* ─── Button shine ─── */
 .btn-shine {
@@ -188,16 +210,24 @@ body {
 .btn-shine::before {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.3) 45%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.3) 55%, transparent 60%);
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.12) 45%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0.12) 55%, transparent 60%);
   animation: shine 3s ease-in-out infinite;
   transform: translateX(-100%) rotate(25deg);
 }
 @keyframes shine {
-  0% { transform: translateX(-100%) rotate(25deg); }
-  20% { transform: translateX(100%) rotate(25deg); }
-  100% { transform: translateX(100%) rotate(25deg); }
+  0%   { transform: translateX(-100%) rotate(25deg); }
+  20%  { transform: translateX(100%)  rotate(25deg); }
+  100% { transform: translateX(100%)  rotate(25deg); }
+}
+
+/* ─── Amber accent line ─── */
+.accent-line::before {
+  content: '';
+  display: block;
+  width: 32px;
+  height: 1px;
+  background: var(--color-accent);
+  margin-bottom: 12px;
 }

@@ -80,6 +80,8 @@ $services = @(
     @{ n = "Notification Service"; dir = "notification-service"; port = 8817; wait = 0 }
 )
 
+$startup = New-CimInstance -ClassName Win32_ProcessStartup -Property @{ ShowWindow = [uint16]0 } -ClientOnly
+
 foreach ($s in $services) {
     # Check if there is an executable exec.jar
     $jar = Get-ChildItem -Path "$base\$($s.dir)\target\*.jar" | Where-Object { $_.Name -like "*exec.jar" } | Select-Object -ExpandProperty FullName -First 1
@@ -100,7 +102,11 @@ foreach ($s in $services) {
     New-Item -ItemType File -Path $stderr -Force | Out-Null
     
     Write-Host "  Starting $($s.n) (port $($s.port))..." -ForegroundColor Cyan
-    Start-Process -FilePath $JavaPath -ArgumentList "-Xmx256m -jar `"$jar`"" -RedirectStandardOutput $stdout -RedirectStandardError $stderr -NoNewWindow
+    $cmdLine = "cmd.exe /c `"`"$JavaPath`" -Xmx256m -jar `"$jar`" > `"$stdout`" 2> `"$stderr`"`""
+    $res = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $cmdLine; ProcessStartupInformation = $startup }
+    if ($res.ReturnValue -ne 0) {
+        Write-Host "  [ERROR] Failed to start $($s.n): $($res.ReturnValue)" -ForegroundColor Red
+    }
     
     if ($s.wait -gt 0) {
         Start-Sleep -Seconds $s.wait
@@ -114,7 +120,12 @@ $reactStderr = Join-Path $base "logs\react-det-err.log"
 New-Item -ItemType File -Path $reactStdout -Force | Out-Null
 New-Item -ItemType File -Path $reactStderr -Force | Out-Null
 
-Start-Process -FilePath "npm.cmd" -ArgumentList "run dev" -WorkingDirectory (Join-Path $base "web-client-react") -RedirectStandardOutput $reactStdout -RedirectStandardError $reactStderr -NoNewWindow
+$reactDir = Join-Path $base "web-client-react"
+$reactCmdLine = "cmd.exe /c `"npm.cmd run dev > `"$reactStdout`" 2> `"$reactStderr`"`""
+$res = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $reactCmdLine; CurrentDirectory = $reactDir; ProcessStartupInformation = $startup }
+if ($res.ReturnValue -ne 0) {
+    Write-Host "  [ERROR] Failed to start React Frontend: $($res.ReturnValue)" -ForegroundColor Red
+}
 
 Write-Host "==========================================================" -ForegroundColor Green
 Write-Host "  ALL SYSTEM LAUNCHED SUCCESSFULLY!" -ForegroundColor Green

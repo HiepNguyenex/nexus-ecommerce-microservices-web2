@@ -35,28 +35,43 @@ public class CartServiceImpl implements CartService {
     @Override
     @CircuitBreaker(name = "product-service", fallbackMethod = "addItemFallback")
     @Retry(name = "product-service")
-    public void addItemToCart(String cartId, Long productId, Integer quantity) {
-        Product product = productClient.getProductById(productId);
-        Item item = new Item(quantity, product, CartUtilities.getSubTotalForItem(product, quantity));
+    public void addItemToCart(String cartId, Long productId, Integer quantity, String size) {
+        java.util.Map<String, Object> rawProduct = productClient.getRawProductById(productId);
+        
+        // Trích xuất giá cho dung tích được chọn
+        BigDecimal finalPrice = null;
+        List<java.util.Map<String, Object>> variants = (List<java.util.Map<String, Object>>) rawProduct.get("variants");
+        if (variants != null) {
+            for (java.util.Map<String, Object> variant : variants) {
+                if (size != null && size.equalsIgnoreCase((String) variant.get("size"))) {
+                    finalPrice = new BigDecimal(variant.get("price").toString());
+                    break;
+                }
+            }
+        }
+        if (finalPrice == null) {
+            finalPrice = new BigDecimal(rawProduct.get("price").toString());
+        }
+
+        Product product = new Product();
+        product.setId(productId);
+        product.setProductName((String) rawProduct.get("productName"));
+        product.setPrice(finalPrice);
+
+        Item item = new Item(quantity, product, finalPrice.multiply(BigDecimal.valueOf(quantity)), size);
         cartRedisRepository.addItemToCart(cartId, item);
-        log.info("Đã thêm sản phẩm {} vào giỏ hàng {} (số lượng: {})", productId, cartId, quantity);
+        log.info("Đã thêm sản phẩm {} (dung tích: {}) vào giỏ hàng {} (số lượng: {})", productId, size, cartId, quantity);
     }
 
     /**
      * Fallback khi product-catalog-service không khả dụng.
-     * Trả về sản phẩm placeholder để user biết service tạm thời gián đoạn.
+     * KHÔNG lưu placeholder vào Redis để tránh ô nhiễm giỏ hàng.
      */
-    public void addItemFallback(String cartId, Long productId, Integer quantity, Exception ex) {
+    public void addItemFallback(String cartId, Long productId, Integer quantity, String size, Exception ex) {
         log.warn("[Circuit Breaker OPEN] product-catalog-service không khả dụng. " +
                  "CartId: {}, ProductId: {}, Lỗi: {}", cartId, productId, ex.getMessage());
-        // Tạo sản phẩm placeholder để tránh crash
-        Product fallbackProduct = new Product();
-        fallbackProduct.setId(productId);
-        fallbackProduct.setProductName("Sản phẩm tạm thời không khả dụng");
-        fallbackProduct.setPrice(BigDecimal.ZERO);
-        Item item = new Item(quantity, fallbackProduct, BigDecimal.ZERO);
-        cartRedisRepository.addItemToCart(cartId, item);
-        log.warn("[Circuit Breaker] Đã thêm sản phẩm placeholder vào giỏ hàng {}", cartId);
+        // Không lưu item lỗi vào Redis — throw để caller biết thêm thất bại
+        throw new RuntimeException("Dịch vụ catalog tạm thời không khả dụng. Vui lòng thử lại sau ít phút.");
     }
 
     @Override
@@ -65,33 +80,39 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public void changeItemQuantity(String cartId, Long productId, Integer quantity) {
+    public void changeItemQuantity(String cartId, Long productId, Integer quantity, String size) {
         List<Item> cart = (List) cartRedisRepository.getCart(cartId, Item.class);
         for (Item item : cart) {
-            if ((item.getProduct().getId()).equals(productId)) {
+            String itemSize = item.getSelectedSize();
+            if ((item.getProduct().getId()).equals(productId) && 
+                ((size == null && itemSize == null) || (size != null && size.equalsIgnoreCase(itemSize)))) {
                 cartRedisRepository.deleteItemFromCart(cartId, item);
                 item.setQuantity(quantity);
-                item.setSubTotal(CartUtilities.getSubTotalForItem(item.getProduct(), quantity));
+                item.setSubTotal(item.getProduct().getPrice().multiply(BigDecimal.valueOf(quantity)));
                 cartRedisRepository.addItemToCart(cartId, item);
             }
         }
     }
 
     @Override
-    public void deleteItemFromCart(String cartId, Long productId) {
+    public void deleteItemFromCart(String cartId, Long productId, String size) {
         List<Item> cart = (List) cartRedisRepository.getCart(cartId, Item.class);
         for (Item item : cart) {
-            if ((item.getProduct().getId()).equals(productId)) {
+            String itemSize = item.getSelectedSize();
+            if ((item.getProduct().getId()).equals(productId) && 
+                ((size == null && itemSize == null) || (size != null && size.equalsIgnoreCase(itemSize)))) {
                 cartRedisRepository.deleteItemFromCart(cartId, item);
             }
         }
     }
 
     @Override
-    public boolean checkIfItemIsExist(String cartId, Long productId) {
+    public boolean checkIfItemIsExist(String cartId, Long productId, String size) {
         List<Item> cart = (List) cartRedisRepository.getCart(cartId, Item.class);
         for (Item item : cart) {
-            if ((item.getProduct().getId()).equals(productId)) {
+            String itemSize = item.getSelectedSize();
+            if ((item.getProduct().getId()).equals(productId) && 
+                ((size == null && itemSize == null) || (size != null && size.equalsIgnoreCase(itemSize)))) {
                 return true;
             }
         }

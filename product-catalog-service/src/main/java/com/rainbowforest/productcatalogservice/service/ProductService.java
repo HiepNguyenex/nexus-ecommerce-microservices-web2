@@ -13,4 +13,5 @@ public interface ProductService {
     public Product addProduct(Product product);
     public void deleteProduct(Long productId);
     public Page<Product> getProductsPaged(String category, String search, Pageable pageable);
+    public void reduceStock(Long productId, int quantity);
 }
