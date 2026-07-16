@@ -10,6 +10,7 @@ import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
 import ScentFinderPage from './pages/ScentFinderPage';
 import WishlistPage from './pages/WishlistPage';
+import ChatBot from './components/ChatBot';
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
@@ -67,32 +68,35 @@ export default function App() {
   }, [user]);
 
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={
-        <PublicRoute>
-          <LoginPage />
-        </PublicRoute>
-      } />
-      <Route path="/product/:id" element={<ProductPage />} />
-      <Route path="/scent-finder" element={<ScentFinderPage />} />
-      <Route path="/cart" element={
-        <ProtectedRoute>
-          <CartPage />
-        </ProtectedRoute>
-      } />
-      <Route path="/profile" element={
-        <ProtectedRoute>
-          <ProfilePage />
-        </ProtectedRoute>
-      } />
-      <Route path="/wishlist" element={<WishlistPage />} />
-      <Route path="/admin" element={
-        <ProtectedRoute adminOnly>
-          <AdminPage />
-        </ProtectedRoute>
-      } />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={
+          <PublicRoute>
+            <LoginPage />
+          </PublicRoute>
+        } />
+        <Route path="/product/:id" element={<ProductPage />} />
+        <Route path="/scent-finder" element={<ScentFinderPage />} />
+        <Route path="/cart" element={
+          <ProtectedRoute>
+            <CartPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/wishlist" element={<WishlistPage />} />
+        <Route path="/admin" element={
+          <ProtectedRoute adminOnly>
+            <AdminPage />
+          </ProtectedRoute>
+        } />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <ChatBot />
+    </>
   );
 }
